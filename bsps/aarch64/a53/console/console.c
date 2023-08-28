@@ -37,14 +37,15 @@
 #include <rtems/bspIo.h>
 
 #include <bsp.h>
-#include <dev/serial/arm-pl011.h>
+#include <dev/serial/pl011.h>
 #include <bsp/console-termios.h>
 
 #include <bspopts.h>
 
-arm_pl011_context a53_qemu_vpl011_context = {
-  .base = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("PL011"),
-  .regs = (volatile pl011 *) BSP_A53_QEMU_VPL011_BASE,
+pl011_context a53_qemu_vpl011_context = {
+  .context = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("PL011"),
+  .regs_base = BSP_A53_QEMU_VPL011_BASE,
+  /* FIXME: Add clock speed. Otherwise buadrate intialization will fail */
   .initial_baud = 115200
 };
 
@@ -52,8 +53,8 @@ const console_device console_device_table[] = {
   {
     .device_file = "/dev/ttyS0",
     .probe = console_device_probe_default,
-    .handler = &arm_pl011_fns,
-    .context = &a53_qemu_vpl011_context.base
+    .handler = &pl011_handler,
+    .context = &a53_qemu_vpl011_context.context
   }
 };
 
@@ -61,7 +62,7 @@ const size_t console_device_count = RTEMS_ARRAY_SIZE(console_device_table);
 
 static void output_char( char c )
 {
-  arm_pl011_write_polled(&a53_qemu_vpl011_context.base, c);
+  pl011_write_char_polled(&a53_qemu_vpl011_context.context, c);
 }
 
 BSP_output_char_function_type BSP_output_char = output_char;

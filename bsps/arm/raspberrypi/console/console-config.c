@@ -25,7 +25,7 @@
 #include <libchip/serial.h>
 #include <libfdt.h>
 #include <libchip/ns16550.h>
-#include <dev/serial/arm-pl011.h>
+#include <dev/serial/pl011.h>
 
 #include <bspopts.h>
 #include <bsp/usart.h>
@@ -46,19 +46,20 @@
 #define MINIUART  "/dev/ttyS0"
 #define FBCONS    "/dev/fbcons"
 
-arm_pl011_context pl011_context;
-ns16550_context mini_uart_context;
+pl011_context uart0;
+/* FIXME: Define clock speed in uart0. Otherwise buadrate intialization will fail */
+ns16550_context uart1;
 
 rpi_fb_context fb_context;
 
 static void output_char_pl011(char c)
 {
-  arm_pl011_write_polled(&pl011_context.base, c);
+  pl011_write_char_polled(&uart0.context, c);
 }
 
 static void output_char_mini_uart(char c)
 {
-  ns16550_polled_putchar(&mini_uart_context.base, c);
+  ns16550_polled_putchar(&uart1.base, c);
 }
 
 void output_char_fb(char c)
@@ -83,9 +84,9 @@ static void init_ctx_arm_pl011(
   int node
 )
 {
-  arm_pl011_context *ctx = &pl011_context;
+  pl011_context *ctx = &uart0;
   rtems_termios_device_context_initialize(&ctx->base, "PL011UART");
-  ctx->regs = raspberrypi_get_reg_of_node(fdt, node);
+  ctx->regs_base = raspberrypi_get_reg_of_node(fdt, node);
 }
 
 static uint32_t calculate_baud_divisor(
@@ -106,8 +107,8 @@ static void init_ctx_mini_uart(
   int len;
   ns16550_context *ctx;
 
-  memset(&mini_uart_context, 0, sizeof(mini_uart_context));
-  ctx = &mini_uart_context;
+  memset(&uart1, 0, sizeof(uart1));
+  ctx = &uart1;
 
   rtems_termios_device_context_initialize(&ctx->base, "MiniUART");
 
@@ -221,16 +222,16 @@ rtems_status_code console_initialize(
   uart_probe();
   rtems_termios_device_install(
     PL011,
-    &arm_pl011_fns,
+    &pl011_handler,
     NULL,
-    &pl011_context.base
+    &uart0.context
   );
 
   rtems_termios_device_install(
     MINIUART,
     &ns16550_handler_polled,
     NULL,
-    &mini_uart_context.base
+    &uart1.base
   );
 
   register_fb();
