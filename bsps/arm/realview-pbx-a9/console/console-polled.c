@@ -32,8 +32,9 @@
 #include <rtems/bspIo.h>
 
 arm_pl011_context rvpbx_pl011_context = {
-  .base = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("PL011"),
-  .regs = (volatile pl011 *) 0x10009000,
+  .context = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER("PL011"),
+  .regs_base = 0x10009000,
+  /* FIXME: Define clock speed here otherwise baudrate configuration will fail */
   .irq = RVPBXA9_IRQ_UART_0,
   .initial_baud = 115200
 };

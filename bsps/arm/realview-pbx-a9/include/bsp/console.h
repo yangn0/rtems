@@ -28,13 +28,13 @@
 #ifndef LIBBSP_ARM_REALVIEW_PBX_A9_BSP_CONSOLE_H
 #define LIBBSP_ARM_REALVIEW_PBX_A9_BSP_CONSOLE_H
 
-#include <dev/serial/arm-pl011.h>
+#include <dev/serial/pl011.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-extern arm_pl011_context rvpbx_pl011_context;
+extern pl011_context rvpbx_pl011_context;
 
 bool rvpbx_pl011_probe(rtems_termios_device_context *base);
 
