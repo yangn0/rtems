@@ -1,15 +1,8 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 
-/**
- *  @file
- *
- *  @ingroup RTEMSBSPsARMShared
- *
- *  @brief ARM PL011 Support Package
- */
-
 /*
- * Copyright (C) 2013, 2014 embedded brains GmbH & Co. KG
+ * Copyright (C) 2023 Utkarsh Verma
+ *
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,32 +26,43 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LIBBSP_ARM_SHARED_ARM_PL011_H
-#define LIBBSP_ARM_SHARED_ARM_PL011_H
+#ifndef LIBBSP_SHARED_DEV_SERIAL_PL011_H
+#define LIBBSP_SHARED_DEV_SERIAL_PL011_H
 
+#include <bspopts.h>
+#include <rtems/rtems/intr.h>
+#include <rtems/termiosdevice.h>
 #include <rtems/termiostypes.h>
-
-#include <dev/serial/arm-pl011-regs.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct {
-  rtems_termios_device_context base;
-  volatile pl011 *regs;
-  rtems_vector_number irq;
-  uint32_t initial_baud;
-} arm_pl011_context;
+    rtems_termios_device_context context;
+    const uintptr_t regs_base;
+    const uint32_t clock;
+    const uint32_t initial_baud;
+    const rtems_vector_number irq;
 
-bool arm_pl011_probe(rtems_termios_device_context *base);
+#ifdef BSP_CONSOLE_USE_INTERRUPTS
+    /*
+     * Due to HW limitation, the first TX interrupt should be triggered by the
+     * software. This is because TX interrupts are based on transition through
+     * a level, rather than on the level itself. When the UART interrupt and
+     * UART is enabled before any data is written to the TXFIFO, the interrupt
+     * is not set. The interrupt is only set once the TXFIFO becomes empty
+     * after being filled to the trigger level. Until then, this flag variable
+     * ensures that the interrupt handler is software triggered.
+     */
+    volatile bool needs_sw_triggered_tx_irq;
 
-void arm_pl011_write_polled(rtems_termios_device_context *base, char c);
+    volatile int tx_queued_chars;
+    rtems_termios_tty* tty;
+#endif
+} pl011_context;
 
-extern const rtems_termios_device_handler arm_pl011_fns;
+extern const rtems_termios_device_handler pl011_handler;
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
+void pl011_write_char_polled(const rtems_termios_device_context* base,
+                             const char ch);
 
-#endif /* LIBBSP_ARM_SHARED_ARM_PL011_H */
+#endif /* LIBBSP_SHARED_DEV_SERIAL_PL011_H */
