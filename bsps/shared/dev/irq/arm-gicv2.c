@@ -34,6 +34,7 @@
  */
 
 #include <dev/irq/arm-gic.h>
+#include <dev/irq/arm-gic-irq.h>
 #include <dev/irq/arm-gic-arch.h>
 
 #include <bsp/irq.h>

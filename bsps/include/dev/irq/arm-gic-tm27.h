@@ -44,6 +44,7 @@
 #include <bsp/irq.h>
 
 #include <rtems/score/assert.h>
+#include <dev/irq/arm-gic-irq.h>
 
 #define MUST_WAIT_FOR_INTERRUPT 1
 
