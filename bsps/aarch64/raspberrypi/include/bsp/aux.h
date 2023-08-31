@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief This source file contains the default MMU tables and setup.
+ * @brief Auxiliaries Device Driver
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,54 +34,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "bsp/start/bspstartmmu.h"
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_AUX_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_AUX_H
 
-#include <bsp/aarch64-mmu.h>
-#include <libcpu/mmu-vmsav8-64.h>
+#include <bsp/utility.h>
+#include <bspopts.h>
 
-#include "bsp/aux.h"
-#include "bsp/console.h"
-#include "bsp/irq.h"
-#include "bsp/rpi-gpio.h"
+#if RTEMS_BSP == raspberrypi4b
+#include "bsp/bcm2711.h"
 
-#define CONSOLE_DEVICE_MMU_CONFIG(_port, _file, base, size, ...) \
-    {.begin = base, .end = base + size, .flags = AARCH64_MMU_DEVICE},
+#define BSP_AUX_BASE BCM2711_AUX_BASE
+#define BSP_AUX_SIZE BCM2711_AUX_SIZE
+#endif /* raspberrypi4b */
 
-BSP_START_DATA_SECTION static const aarch64_mmu_config_entry
-    bsp_mmu_config_table[] = {
-        AARCH64_MMU_DEFAULT_SECTIONS,
+#define REG(addr) *(volatile uint32_t*)(addr)
 
-        /* clang-format off */
-        CONSOLE_DEVICES(CONSOLE_DEVICE_MMU_CONFIG)
-        /* clang-format on */
+#define AUX_ENABLES_REG       REG(BSP_AUX_BASE + 0x04)
+#define AUX_ENABLES_MINI_UART BSP_BIT32(0)
 
-        {
-            /* Auxiliaries */
-            .begin = BSP_AUX_BASE,
-            .end   = BSP_AUX_BASE + BSP_AUX_SIZE,
-            .flags = AARCH64_MMU_DEVICE,
-        },
-
-        {
-            /* GPIO */
-            .begin = BSP_GPIO_BASE,
-            .end   = BSP_GPIO_BASE + BSP_GPIO_SIZE,
-            .flags = AARCH64_MMU_DEVICE,
-        },
-
-        {
-            /* Interrupts */
-            .begin = BSP_GIC_BASE,
-            .end   = BSP_GIC_BASE + BSP_GIC_SIZE,
-            .flags = AARCH64_MMU_DEVICE,
-        },
-};
-
-BSP_START_TEXT_SECTION void bsp_start_mmu_setup(void) {
-    aarch64_mmu_setup();
-
-    aarch64_mmu_setup_translation_table(
-        &bsp_mmu_config_table[0], RTEMS_ARRAY_SIZE(bsp_mmu_config_table));
-
-    aarch64_mmu_enable();
+static inline void aux_enable_mini_uart(void) {
+    AUX_ENABLES_REG |= AUX_ENABLES_MINI_UART;
 }
+
+static inline void aux_disable_mini_uart(void) {
+    AUX_ENABLES_REG &= ~AUX_ENABLES_MINI_UART;
+}
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_AUX_H */

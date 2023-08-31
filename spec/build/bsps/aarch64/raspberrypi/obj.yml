@@ -26,6 +26,8 @@ source:
 
 links:
   - role: build-dependency
+    uid: objaux
+  - role: build-dependency
     uid: objcache
   - role: build-dependency
     uid: objclock
