@@ -13,7 +13,7 @@ actions:
   - get-string: null
   - define-unquoted: null
   - assert-ge: UART0
-  - assert-le: UART1
+  - assert-le: UART5
 
 default:
   - enabled-by:
