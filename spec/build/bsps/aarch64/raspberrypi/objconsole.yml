@@ -10,12 +10,18 @@ cflags: []
 cppflags: []
 cxxflags: []
 includes: []
-install: []
+
+install:
+  - destination: ${BSP_INCLUDEDIR}/bsp
+    source:
+      - bsps/aarch64/raspberrypi/include/bsp/console.h
+  - destination: ${BSP_INCLUDEDIR}/bsp/console
+    source:
+      - bsps/aarch64/raspberrypi/include/bsp/console/raspberrypi4b.def
 
 source:
   - bsps/aarch64/raspberrypi/console/console.c
   - bsps/shared/dev/serial/console-termios.c
-  - bsps/shared/dev/serial/console-termios-init.c
   - bsps/shared/dev/serial/pl011.c
 
 links: []

@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Raspberry Pi 4B Console Device Definitions
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
-#include <stdint.h>
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_RASPBERRYPI4B_DEF
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_RASPBERRYPI4B_DEF
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+#include <dev/serial/pl011.h>
+
+#include "bsp/bcm2711.h"
+
+#define RASPBERRYPI4B_CONSOLE_DEVICES(X)                           \
+    X(0, "/dev/ttyAMA0", BCM2711_UART0_BASE, BCM2711_UART0_SIZE,   \
+      BSP_PL011_CLOCK_FREQ, BCM2711_IRQ_PL011_UART, pl011_context, \
+      &pl011_handler, pl011_write_char_polled)
+
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_RASPBERRYPI4B_DEF */

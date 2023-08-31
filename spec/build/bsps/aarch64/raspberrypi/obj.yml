@@ -18,9 +18,6 @@ install:
     source:
       - bsps/aarch64/raspberrypi/include/bsp.h
       - bsps/aarch64/raspberrypi/include/tm27.h
-  - destination: ${BSP_INCLUDEDIR}/bsp
-    source:
-      - bsps/aarch64/raspberrypi/include/bsp/raspberrypi.h
 
 source:
   - bsps/aarch64/shared/mmu/vmsav8-64.c

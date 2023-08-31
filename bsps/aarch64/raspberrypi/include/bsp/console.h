@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Console Configuration
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
-#include <stdint.h>
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_H
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+#include <bspopts.h>
+
+#if RTEMS_BSP == raspberrypi4b
+#include "console/raspberrypi4b.def"
+
+#define CONSOLE_DEVICES RASPBERRYPI4B_CONSOLE_DEVICES
+#endif /* raspberrypi4b */
+
+#define CONSOLE_DEVICE_PORT2ENUM(port_no) UART##port_no
+#define CONSOLE_DEVICE_ENUM(port_no, ...) CONSOLE_DEVICE_PORT2ENUM(port_no),
+typedef enum {
+    /* clang-format off */
+    CONSOLE_DEVICES(CONSOLE_DEVICE_ENUM)
+    /* clang-format on */
+
+    CONSOLE_DEVICE_COUNT,
+} bsp_console_device_port;
+#undef CONSOLE_DEVICE_ENUM
+
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_H */
