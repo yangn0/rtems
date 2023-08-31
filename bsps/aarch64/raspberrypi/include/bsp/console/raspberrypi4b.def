@@ -37,6 +37,7 @@
 #ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_RASPBERRYPI4B_DEF
 #define LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_RASPBERRYPI4B_DEF
 
+#include <bspopts.h>
 #include <dev/serial/pl011.h>
 
 #include "bsp/bcm2711.h"

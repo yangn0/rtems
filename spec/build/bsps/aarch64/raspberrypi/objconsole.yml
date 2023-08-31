@@ -24,4 +24,12 @@ source:
   - bsps/shared/dev/serial/console-termios.c
   - bsps/shared/dev/serial/pl011.c
 
-links: []
+links:
+  - role: build-dependency
+    uid: optclockpl011freq
+  - role: build-dependency
+    uid: optconsolebaud
+  - role: build-dependency
+    uid: optconsoleirq
+  - role: build-dependency
+    uid: optconsoleport

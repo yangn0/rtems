@@ -47,9 +47,6 @@
 #include <rtems/termiosdevice.h>
 #include <stdint.h>
 
-#define BSP_CONSOLE_BAUD 115200
-#define BSP_CONSOLE_PORT UART0
-
 #define CONSOLE_DEVICE_CONTEXT_NAME(port_no) uart##port_no##_context
 
 #define CONSOLE_DEVICE_CONTEXT(port_no, _file_name, base, _size, clock_freq,    \
