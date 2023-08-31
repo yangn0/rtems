@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief This source file contains the default MMU tables and setup.
+ * @brief GPIO Driver
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,46 +34,42 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "bsp/start/bspstartmmu.h"
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_RPI_GPIO_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_RPI_GPIO_H
 
-#include <bsp/aarch64-mmu.h>
-#include <libcpu/mmu-vmsav8-64.h>
+#include <bspopts.h>
+#include <rtems/rtems/status.h>
 
-#include "bsp/console.h"
-#include "bsp/irq.h"
-#include "bsp/rpi-gpio.h"
+#if RTEMS_BSP == raspberrypi4b
+#include "bsp/bcm2711.h"
 
-#define CONSOLE_DEVICE_MMU_CONFIG(_port, _file, base, size, ...) \
-    {.begin = base, .end = base + size, .flags = AARCH64_MMU_DEVICE},
+#define BSP_GPIO_BASE      BCM2711_GPIO_BASE
+#define BSP_GPIO_SIZE      BCM2711_GPIO_SIZE
+#define BSP_GPIO_PIN_COUNT BCM2711_GPIO_PIN_COUNT
 
-BSP_START_DATA_SECTION static const aarch64_mmu_config_entry
-    bsp_mmu_config_table[] = {
-        AARCH64_MMU_DEFAULT_SECTIONS,
+#endif /* raspberrypi4b */
 
-        /* clang-format off */
-        CONSOLE_DEVICES(CONSOLE_DEVICE_MMU_CONFIG)
-        /* clang-format on */
+typedef enum {
+    GPIO_INPUT,
+    GPIO_OUTPUT,
+    GPIO_AF5,
+    GPIO_AF4,
+    GPIO_AF0,
+    GPIO_AF1,
+    GPIO_AF2,
+    GPIO_AF3,
+} gpio_function;
 
-        {
-            /* GPIO */
-            .begin = BSP_GPIO_BASE,
-            .end   = BSP_GPIO_BASE + BSP_GPIO_SIZE,
-            .flags = AARCH64_MMU_DEVICE,
-        },
+typedef enum {
+    GPIO_PULL_NONE,
+    GPIO_PULL_UP,
+    GPIO_PULL_DOWN,
+} gpio_pull;
 
-        {
-            /* Interrupts */
-            .begin = BSP_GIC_BASE,
-            .end   = BSP_GIC_BASE + BSP_GIC_SIZE,
-            .flags = AARCH64_MMU_DEVICE,
-        },
-};
+rtems_status_code gpio_set_function(const unsigned int pin,
+                                    const gpio_function value);
+rtems_status_code gpio_set_pin(const unsigned int pin);
+rtems_status_code gpio_clear_pin(const unsigned int pin);
+rtems_status_code gpio_set_pull(const unsigned int pin, const gpio_pull value);
 
-BSP_START_TEXT_SECTION void bsp_start_mmu_setup(void) {
-    aarch64_mmu_setup();
-
-    aarch64_mmu_setup_translation_table(
-        &bsp_mmu_config_table[0], RTEMS_ARRAY_SIZE(bsp_mmu_config_table));
-
-    aarch64_mmu_enable();
-}
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_RPI_GPIO_H */
