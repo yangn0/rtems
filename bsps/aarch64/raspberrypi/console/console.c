@@ -40,6 +40,7 @@
 #include <bsp/console-termios.h>
 #include <bsp/fatal.h>
 #include <bspopts.h>
+#include <dev/serial/mini-uart.h>
 #include <dev/serial/pl011.h>
 #include <rtems/bspIo.h>
 #include <rtems/console.h>
@@ -47,6 +48,7 @@
 #include <rtems/termiosdevice.h>
 #include <stdint.h>
 
+#include "bsp/aux.h"
 #include "bsp/rpi-gpio.h"
 
 #define CONSOLE_DEVICE_CONTEXT_NAME(port_no) uart##port_no##_context
@@ -136,6 +138,9 @@ rtems_device_driver console_initialize(rtems_device_major_number major,
     const bsp_console_device* device = &devices[BSP_CONSOLE_PORT];
 
     rtems_termios_initialize();
+
+    if (device->handler == &mini_uart_handler)
+        aux_enable_mini_uart();
 
     rtems_status_code status = console_device_init_gpio(&device->gpio);
     if (status != RTEMS_SUCCESSFUL)

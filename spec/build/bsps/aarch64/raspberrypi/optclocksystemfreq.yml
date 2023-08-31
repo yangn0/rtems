@@ -6,19 +6,17 @@ type: build
 enabled-by: true
 
 build-type: option
-name: BSP_CONSOLE_PORT
-description: Default UART port for the console device.
+name: BSP_SYSTEM_CLOCK_FREQ
+description: System clock frequency in Hz.
 
 actions:
-  - get-string: null
-  - define-unquoted: null
-  - assert-ge: UART0
-  - assert-le: UART1
+  - get-integer: null
+  - define: null
 
 default:
   - enabled-by:
       - aarch64/raspberrypi4b
-    value: UART1
+    value: 500000000
 
 format: '{}'
 links: []

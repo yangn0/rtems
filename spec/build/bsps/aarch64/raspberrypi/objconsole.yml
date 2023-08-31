@@ -23,10 +23,13 @@ source:
   - bsps/aarch64/raspberrypi/console/console.c
   - bsps/shared/dev/serial/console-termios.c
   - bsps/shared/dev/serial/pl011.c
+  - bsps/shared/dev/serial/mini-uart.c
 
 links:
   - role: build-dependency
     uid: optclockpl011freq
+  - role: build-dependency
+    uid: optclocksystemfreq
   - role: build-dependency
     uid: optconsolebaud
   - role: build-dependency
