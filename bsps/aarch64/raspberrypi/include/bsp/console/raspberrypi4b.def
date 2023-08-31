@@ -41,10 +41,11 @@
 #include <dev/serial/pl011.h>
 
 #include "bsp/bcm2711.h"
+#include "bsp/rpi-gpio.h"
 
 #define RASPBERRYPI4B_CONSOLE_DEVICES(X)                           \
     X(0, "/dev/ttyAMA0", BCM2711_UART0_BASE, BCM2711_UART0_SIZE,   \
       BSP_PL011_CLOCK_FREQ, BCM2711_IRQ_PL011_UART, pl011_context, \
-      &pl011_handler, pl011_write_char_polled)
+      &pl011_handler, pl011_write_char_polled, 15, 14, GPIO_AF0)
 
 #endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_RASPBERRYPI4B_DEF */
