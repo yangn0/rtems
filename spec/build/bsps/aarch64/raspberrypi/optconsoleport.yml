@@ -12,8 +12,15 @@ description: Default UART port for the console device.
 actions:
   - get-string: null
   - define-unquoted: null
-  - assert-ge: UART0
-  - assert-le: UART5
+  - script: |
+      uarts = {
+        "raspberrypi4b": ["UART0", "UART1", "UART2", "UART3", "UART4", "UART5"]
+      }
+
+      bsp_base = conf.get_env()["BSP_BASE"]
+      bsp_uarts = uarts[bsp_base]
+      if value not in bsp_uarts:
+        conf.fatal("{} is not one of {}".format(value, bsp_uarts))
 
 default:
   - enabled-by:
