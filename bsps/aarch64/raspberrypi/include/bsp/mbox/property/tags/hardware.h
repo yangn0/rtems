@@ -39,6 +39,8 @@
 
 #include <stdint.h>
 
+#include "clocks.h"
+
 #define HARDWARE_GET_BOARD_MODEL_TAG \
     { 0x00010001, sizeof(hardware_get_board_model_tag_buffer) }
 #define HARDWARE_GET_BOARD_REVISION_TAG \
@@ -92,16 +94,12 @@ typedef union {
     } response;
 } hardware_get_vc_memory_tag_buffer;
 
-/*
- * NOTE: The docs mention 15 kinds of clocks, but the 15 array length might
- * need further investigation.
- */
 typedef union {
     const struct {
         struct {
             uint32_t parent_id;
             uint32_t id;
-        } clocks[15];
+        } clocks[CLOCK_COUNT];
     } response;
 } hardware_get_clocks_tag_buffer;
 

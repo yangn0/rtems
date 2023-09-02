@@ -26,6 +26,7 @@ install:
     source:
       - bsps/aarch64/raspberrypi/include/bsp/mbox/property/tags/hardware.h
       - bsps/aarch64/raspberrypi/include/bsp/mbox/property/tags/videocore.h
+      - bsps/aarch64/raspberrypi/include/bsp/mbox/property/tags/clocks.h
 
 source:
   - bsps/aarch64/raspberrypi/mbox/mbox.c
