@@ -38,6 +38,8 @@ links:
   - role: build-dependency
     uid: objgpio
   - role: build-dependency
+    uid: objmbox
+  - role: build-dependency
     uid: objstart
   - role: build-dependency
     uid: ../../obj

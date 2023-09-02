@@ -43,6 +43,7 @@
 #include "bsp/aux.h"
 #include "bsp/console.h"
 #include "bsp/irq.h"
+#include "bsp/mbox.h"
 #include "bsp/rpi-gpio.h"
 
 #define CONSOLE_DEVICE_MMU_CONFIG(_port, _file, base, size, ...) \
@@ -60,6 +61,13 @@ BSP_START_DATA_SECTION static const aarch64_mmu_config_entry
             /* Auxiliaries */
             .begin = BSP_AUX_BASE,
             .end   = BSP_AUX_BASE + BSP_AUX_SIZE,
+            .flags = AARCH64_MMU_DEVICE,
+        },
+
+        {
+            /* Mailbox */
+            .begin = BSP_MBOX_BASE,
+            .end   = BSP_MBOX_BASE + BSP_MBOX_SIZE,
             .flags = AARCH64_MMU_DEVICE,
         },
 
