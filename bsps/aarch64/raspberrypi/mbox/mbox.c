@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Mailbox Driver
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,45 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
+#include "bsp/mbox.h"
+
+#include <bsp/utility.h>
+#include <rtems/rtems/cache.h>
 #include <stdint.h>
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
+#define REG(addr) *(volatile uint32_t*)(addr)
+
+#define MBOX0_BASE BSP_MBOX0_BASE
+#define MBOX1_BASE BSP_MBOX1_BASE
+
+#define MBOX_RW_REG(base)     REG(base + 0x00)
+#define MBOX_STATUS_REG(base) REG(base + 0x18)
+#define MBOX_STATUS_EMPTY     BSP_BIT32(30)
+#define MBOX_STATUS_FULL      BSP_BIT32(31)
+
+#define MBOX_MAIL_CHANNEL_MASK BSP_MSK32(0, 3)
+#define MBOX_MAIL_DATA_MASK    ~MBOX_MAIL_CHANNEL_MASK
+
+mbox_mail mbox_mail_compose(const mbox_channel channel, const uint32_t data) {
+    mbox_mail mail = data & MBOX_MAIL_DATA_MASK;
+    mail |= channel & MBOX_MAIL_CHANNEL_MASK;
+
+    return mail;
+}
+
+mbox_mail mbox_read(void) {
+    /* Wait until there is data to be read */
+    while ((MBOX_STATUS_REG(MBOX0_BASE) & MBOX_STATUS_EMPTY) != 0)
+        ;
+
+    const mbox_mail mail = (mbox_mail)MBOX_RW_REG(MBOX0_BASE);
+    return mail;
+}
+
+void mbox_write(const mbox_mail mail) {
+    /* Wait until space is available */
+    while ((MBOX_STATUS_REG(MBOX1_BASE) & MBOX_STATUS_FULL) != 0)
+        ;
+
+    MBOX_RW_REG(MBOX1_BASE) = (uint32_t)mail;
 }

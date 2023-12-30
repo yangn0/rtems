@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Mailbox Property Interface
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
-#include <stdint.h>
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_H
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+#include "bsp/mbox.h"
+#include "bsp/mbox/property/message.h"
+
+int mbox_property_send_message(const mbox_property_message* message);
+
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_H */

@@ -1,15 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 
-/**
- * @file
- *
- * @ingroup RTEMSBSPsAArch64RaspberryPi
- *
- * @brief BSP Startup
- */
-
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +26,43 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
+#ifndef LIBBSP_SHARED_DEV_SERIAL_PL011_H
+#define LIBBSP_SHARED_DEV_SERIAL_PL011_H
+
+#include <bspopts.h>
+#include <rtems/rtems/intr.h>
+#include <rtems/termiosdevice.h>
+#include <rtems/termiostypes.h>
+#include <stddef.h>
 #include <stdint.h>
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+typedef struct {
+    rtems_termios_device_context context;
+    const uintptr_t regs_base;
+    const uint32_t clock;
+    const uint32_t initial_baud;
+    const rtems_vector_number irq;
+
+#ifdef BSP_CONSOLE_USE_INTERRUPTS
+    /*
+     * Due to HW limitation, the first TX interrupt should be triggered by the
+     * software. This is because TX interrupts are based on transition through
+     * a level, rather than on the level itself. When the UART interrupt and
+     * UART is enabled before any data is written to the TXFIFO, the interrupt
+     * is not set. The interrupt is only set once the TXFIFO becomes empty
+     * after being filled to the trigger level. Until then, this flag variable
+     * ensures that the interrupt handler is software triggered.
+     */
+    volatile bool needs_sw_triggered_tx_irq;
+
+    volatile int tx_queued_chars;
+    rtems_termios_tty* tty;
+#endif
+} pl011_context;
+
+extern const rtems_termios_device_handler pl011_handler;
+
+void pl011_write_char_polled(const rtems_termios_device_context* base,
+                             const char ch);
+
+#endif /* LIBBSP_SHARED_DEV_SERIAL_PL011_H */

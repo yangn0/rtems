@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief GPIO Driver
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,42 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
-#include <stdint.h>
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_RPI_GPIO_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_RPI_GPIO_H
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+#include <bspopts.h>
+#include <rtems/rtems/status.h>
+
+#if RTEMS_BSP == raspberrypi4b
+#include "bsp/bcm2711.h"
+
+#define BSP_GPIO_BASE      BCM2711_GPIO_BASE
+#define BSP_GPIO_SIZE      BCM2711_GPIO_SIZE
+#define BSP_GPIO_PIN_COUNT BCM2711_GPIO_PIN_COUNT
+
+#endif /* raspberrypi4b */
+
+typedef enum {
+    GPIO_INPUT,
+    GPIO_OUTPUT,
+    GPIO_AF5,
+    GPIO_AF4,
+    GPIO_AF0,
+    GPIO_AF1,
+    GPIO_AF2,
+    GPIO_AF3,
+} gpio_function;
+
+typedef enum {
+    GPIO_PULL_NONE,
+    GPIO_PULL_UP,
+    GPIO_PULL_DOWN,
+} gpio_pull;
+
+rtems_status_code gpio_set_function(const unsigned int pin,
+                                    const gpio_function value);
+rtems_status_code gpio_set_pin(const unsigned int pin);
+rtems_status_code gpio_clear_pin(const unsigned int pin);
+rtems_status_code gpio_set_pull(const unsigned int pin, const gpio_pull value);
+
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_RPI_GPIO_H */

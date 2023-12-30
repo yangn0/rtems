@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Mailbox Property Tags
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,30 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_TAGS_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_TAGS_H
+
+#include <stddef.h>
 #include <stdint.h>
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+typedef struct {
+    uint32_t id;
+    uint32_t buffer_size;
+    volatile uint32_t status_code;
+} mbox_property_tag_header;
+
+typedef struct {
+    mbox_property_tag_header header;
+    volatile uint32_t buffer[];
+} mbox_property_tag;
+
+typedef struct {
+    const uint32_t id;
+    const uint32_t size;
+} mbox_property_tag_metadata;
+
+int mbox_property_tag_init(mbox_property_tag* tag, const size_t size,
+                           const mbox_property_tag_metadata* metadata);
+mbox_property_tag* mbox_property_tag_next(const mbox_property_tag* current);
+
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_TAGS_H */

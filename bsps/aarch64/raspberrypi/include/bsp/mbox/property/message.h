@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Mailbox Property Message
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,40 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_MESSAGE_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_MESSAGE_H
+
+#include <bspopts.h>
+#include <stddef.h>
 #include <stdint.h>
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+#include "tags.h"
+
+/*
+ * NOTE:
+ * This has to be 16-byte aligned as the least significant nibble is
+ * discarded from the pointer and assumed to be zero while making the
+ * mailbox call.
+ */
+#define mbox_property_message_buffer uint8_t __attribute__((aligned(16)))
+
+typedef struct {
+    uint32_t size;
+    volatile uint32_t status;
+} mbox_property_message_header;
+
+typedef struct {
+    mbox_property_message_header header;
+    mbox_property_tag buffer[];
+} mbox_property_message;
+
+void mbox_property_message_buffer_init(const uint8_t* buffer,
+                                       const size_t size);
+int mbox_property_message_init(mbox_property_message* message,
+                               const size_t size,
+                               const mbox_property_tag_metadata* tag_metadata,
+                               const unsigned int tag_count);
+mbox_property_tag* mbox_property_message_get_tag(
+    const mbox_property_message* message, const unsigned int index);
+
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_PROPERTY_MESSAGE_H */

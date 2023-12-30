@@ -34,6 +34,7 @@
  */
 
 #include <dev/irq/arm-gic.h>
+#include <dev/irq/arm-gic-irq.h>
 #include <bsp/irq-generic.h>
 
 rtems_status_code bsp_interrupt_get_attributes(

@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Auxiliaries Device Driver
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
-#include <stdint.h>
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_AUX_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_AUX_H
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
+#include <bsp/utility.h>
+#include <bspopts.h>
+
+#if RTEMS_BSP == raspberrypi4b
+#include "bsp/bcm2711.h"
+
+#define BSP_AUX_BASE BCM2711_AUX_BASE
+#define BSP_AUX_SIZE BCM2711_AUX_SIZE
+#endif /* raspberrypi4b */
+
+#define REG(addr) *(volatile uint32_t*)(addr)
+
+#define AUX_ENABLES_REG       REG(BSP_AUX_BASE + 0x04)
+#define AUX_ENABLES_MINI_UART BSP_BIT32(0)
+
+static inline void aux_enable_mini_uart(void) {
+    AUX_ENABLES_REG |= AUX_ENABLES_MINI_UART;
 }
+
+static inline void aux_disable_mini_uart(void) {
+    AUX_ENABLES_REG &= ~AUX_ENABLES_MINI_UART;
+}
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_AUX_H */

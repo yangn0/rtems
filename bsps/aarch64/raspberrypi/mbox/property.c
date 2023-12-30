@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Mailbox Property Interface
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
+#include "bsp/mbox/property.h"
+
 #include <stdint.h>
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
+#include "bsp/mbox.h"
+#include "bsp/mbox/property.h"
+#include "bsp/mbox/property/message.h"
+
+static mbox_mail mbox_property_compose_mail(
+    const mbox_property_message* message) {
+    const mbox_mail mail = mbox_mail_compose(
+        MBOX_PROPERTY_TAGS_ARM_TO_VC_CHANNEL, (uintptr_t)message);
+    return mail;
+}
+
+int mbox_property_send_message(const mbox_property_message* message) {
+    const mbox_mail sent_mail = mbox_property_compose_mail(message);
+    mbox_write(sent_mail);
+
+    const mbox_mail received_mail = mbox_read();
+
+    return sent_mail != received_mail;
 }

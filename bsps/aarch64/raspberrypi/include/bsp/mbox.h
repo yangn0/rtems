@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Mailbox Driver
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,38 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_H
+
+#include <bspopts.h>
 #include <stdint.h>
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+#if RTEMS_BSP == raspberrypi4b
+#include "bsp/bcm2711.h"
+
+#define BSP_MBOX_BASE BCM2711_MBOX_BASE
+#define BSP_MBOX_SIZE BCM2711_MBOX_SIZE
+
+#define BSP_MBOX0_BASE BCM2711_MBOX0_BASE
+#define BSP_MBOX1_BASE BCM2711_MBOX1_BASE
+#endif /* raspberrypi4b */
+
+typedef uint32_t mbox_mail;
+
+typedef enum {
+    /* MBOX_POWER_MANAGEMENT_CHANNEL = 0, */
+    /* MBOX_FRAMEBUFFER_CHANNEL, */
+    /* MBOX_VIRTUAL_UART_CHANNEL, */
+    /* MBOX_VCHIQ_CHANNEL, */
+    /* MBOX_LEDS_CHANNEL, */
+    /* MBOX_BUTTONS_CHANNEL, */
+    /* MBOX_TOUCHSCREEN_CHANNEL, */
+    MBOX_PROPERTY_TAGS_ARM_TO_VC_CHANNEL = 8,
+    /* MBOX_PROPERTY_TAGS_VC_TO_ARM_CHANNEL, */
+} mbox_channel;
+
+mbox_mail mbox_mail_compose(const mbox_channel, const uint32_t data);
+mbox_mail mbox_read(void);
+void mbox_write(const mbox_mail mail);
+
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_MBOX_H */

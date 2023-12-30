@@ -1,15 +1,16 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 
 /**
- *  @file
+ * @file
  *
- *  @ingroup RTEMSBSPsARMShared
+ * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- *  @brief ARM PL011 Support Package
+ * @brief Console Configuration
  */
 
 /*
- * Copyright (C) 2013, 2014 embedded brains GmbH & Co. KG
+ * Copyright (C) 2023 Utkarsh Verma
+ *
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,32 +34,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LIBBSP_ARM_SHARED_ARM_PL011_H
-#define LIBBSP_ARM_SHARED_ARM_PL011_H
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_H
 
-#include <rtems/termiostypes.h>
+#include <bspopts.h>
 
-#include <dev/serial/arm-pl011-regs.h>
+#if RTEMS_BSP == raspberrypi4b
+#include "console/raspberrypi4b.def"
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+#define CONSOLE_DEVICES RASPBERRYPI4B_CONSOLE_DEVICES
+#endif /* raspberrypi4b */
 
-typedef struct {
-  rtems_termios_device_context base;
-  volatile pl011 *regs;
-  rtems_vector_number irq;
-  uint32_t initial_baud;
-} arm_pl011_context;
+#define CONSOLE_DEVICE_PORT2ENUM(port_no) UART##port_no
+#define CONSOLE_DEVICE_ENUM(port_no, ...) CONSOLE_DEVICE_PORT2ENUM(port_no),
+typedef enum {
+    /* clang-format off */
+    CONSOLE_DEVICES(CONSOLE_DEVICE_ENUM)
+    /* clang-format on */
 
-bool arm_pl011_probe(rtems_termios_device_context *base);
+    CONSOLE_DEVICE_COUNT,
+} bsp_console_device_port;
+#undef CONSOLE_DEVICE_ENUM
 
-void arm_pl011_write_polled(rtems_termios_device_context *base, char c);
-
-extern const rtems_termios_device_handler arm_pl011_fns;
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
-
-#endif /* LIBBSP_ARM_SHARED_ARM_PL011_H */
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_CONSOLE_H */

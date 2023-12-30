@@ -5,11 +5,10 @@
  *
  * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief BSP Startup
+ * @brief Mailbox Property Tags
  */
 
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +34,34 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
+#include "bsp/mbox/property/tags.h"
+
+#include <bsp/utility.h>
+#include <stddef.h>
 #include <stdint.h>
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
+#define TAG_STATUS_RESPONSE_MASK BSP_BIT32(31)
+
+int mbox_property_tag_init(mbox_property_tag *tag, const size_t size,
+                           const mbox_property_tag_metadata *metadata) {
+    if (sizeof(*tag) > size)
+        return 1;
+
+    tag->header.id          = metadata->id;
+    tag->header.buffer_size = metadata->size;
+    tag->header.status_code &= ~TAG_STATUS_RESPONSE_MASK;
+
+    return 0;
+}
+
+mbox_property_tag *mbox_property_tag_next(const mbox_property_tag *current) {
+    uintptr_t next_tag_addr = (uintptr_t)(current) + sizeof(current->header) +
+                              current->header.buffer_size;
+    const unsigned int alignment = sizeof(uint32_t);
+
+    /* Tags are 32-bit aligned */
+    if (next_tag_addr % alignment > 0)
+        next_tag_addr += alignment - next_tag_addr % alignment;
+
+    return (mbox_property_tag *)next_tag_addr;
 }

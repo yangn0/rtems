@@ -3,13 +3,14 @@
 /**
  * @file
  *
- * @ingroup RTEMSBSPsAArch64Raspberrypi4
+ * @ingroup RTEMSBSPsAArch64RaspberryPi
  *
- * @brief Core BSP definitions
+ * @brief Core BSP Definitions
  */
 
 /*
  * Copyright (C) 2022 Mohd Noor Aman
+ * Copyright (C) 2023 Utkarsh Verma
  *
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,43 +35,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LIBBSP_AARCH64_RASPBERRYPI_4_BSP_H
-#define LIBBSP_AARCH64_RASPBERRYPI_4_BSP_H
-
-/**
- * @addtogroup RTEMSBSPsAArch64
- *
- * @{
- */
+#ifndef LIBBSP_AARCH64_RASPBERRYPI_BSP_H
+#define LIBBSP_AARCH64_RASPBERRYPI_BSP_H
 
 #include <bspopts.h>
 
 #ifndef ASM
 
 #include <bsp/default-initial-extension.h>
-#include <bsp/start.h>
-
-#include <rtems.h>
-
-/*Raspberry pi MMU initialization */
-BSP_START_TEXT_SECTION void raspberrypi_4_setup_mmu_and_cache(void);
-
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
-#define BSP_ARM_GIC_CPUIF_BASE 0xFF842000
-#define BSP_ARM_GIC_DIST_BASE 0xFF841000
-
-#define BSP_RPI4_PL011_BASE 0xFE201000
-#define BSP_RPI4_PL011_LENGTH 0x200
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 
 #endif /* ASM */
 
-/** @} */
-
-#endif /* LIBBSP_AARCH64_RASPBERRYPI_4_BSP_H */
+#endif /* LIBBSP_AARCH64_RASPBERRYPI_BSP_H */

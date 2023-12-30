@@ -1,0 +1,28 @@
+SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
+copyrights:
+  - Copyright (C) 2022 Mohd Noor Aman
+  - Copyright (C) 2023 Utkarsh Verma
+
+type: build
+enabled-by: true
+
+build-type: bsp
+arch: aarch64
+bsp: raspberrypi4b
+family: raspberrypi
+cflags: []
+cppflags: []
+includes: []
+
+install:
+  - destination: ${BSP_INCLUDEDIR}/bsp
+    source:
+      - bsps/aarch64/raspberrypi/include/bsp/bcm2711.h
+
+source: []
+
+links:
+  - role: build-dependency
+    uid: grp
+  - role: build-dependency
+    uid: linkcmds4b

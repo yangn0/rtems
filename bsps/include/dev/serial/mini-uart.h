@@ -1,15 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 
-/**
- * @file
- *
- * @ingroup RTEMSBSPsAArch64RaspberryPi
- *
- * @brief BSP Startup
- */
-
 /*
- * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
  *
  *
@@ -35,13 +26,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <bsp/bootcard.h>
-#include <bsp/irq-generic.h>
-#include <bsp/linker-symbols.h>
+#ifndef LIBBSP_SHARED_DEV_SERIAL_MINI_UART_H
+#define LIBBSP_SHARED_DEV_SERIAL_MINI_UART_H
+
+#include <bspopts.h>
+#include <rtems/rtems/intr.h>
+#include <rtems/termiosdevice.h>
 #include <stdint.h>
 
-void bsp_start(void) {
-    bsp_interrupt_initialize();
-    rtems_cache_coherent_add_area(bsp_section_nocacheheap_begin,
-                                  (uintptr_t)bsp_section_nocacheheap_size);
-}
+typedef struct {
+    rtems_termios_device_context context;
+    const uintptr_t regs_base;
+    const uint32_t clock;
+    const uint32_t initial_baud;
+    const rtems_vector_number irq;
+
+#ifdef BSP_CONSOLE_USE_INTERRUPTS
+    volatile int tx_queued_chars;
+#endif
+} mini_uart_context;
+
+extern const rtems_termios_device_handler mini_uart_handler;
+
+void mini_uart_write_char_polled(const rtems_termios_device_context* context,
+                                 const char ch);
+
+#endif /* LIBBSP_SHARED_DEV_SERIAL_MINI_UART_H */
