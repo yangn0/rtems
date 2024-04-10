@@ -2,6 +2,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0 OR BSD-2-Clause
 copyrights:
   - Copyright (C) 2022 Mohd Noor Aman
   - Copyright (C) 2023 Utkarsh Verma
+  - Copyright (C) 2024 Ning Yang
 
 type: build
 enabled-by: true
@@ -31,6 +32,8 @@ links:
     uid: objcache
   - role: build-dependency
     uid: objclock
+  - role: build-dependency
+    uid: objsystemtimer
   - role: build-dependency
     uid: objconsole
   - role: build-dependency

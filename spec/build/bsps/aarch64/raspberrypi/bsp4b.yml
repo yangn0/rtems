@@ -17,6 +17,7 @@ includes: []
 install:
   - destination: ${BSP_INCLUDEDIR}/bsp
     source:
+      - bsps/aarch64/raspberrypi/include/bsp/raspberrypi.h
       - bsps/aarch64/raspberrypi/include/bsp/bcm2711.h
 
 source: []

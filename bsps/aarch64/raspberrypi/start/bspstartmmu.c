@@ -11,6 +11,7 @@
 /*
  * Copyright (C) 2022 Mohd Noor Aman
  * Copyright (C) 2023 Utkarsh Verma
+ * Copyright (C) 2024 Ning Yang
  *
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +46,7 @@
 #include "bsp/irq.h"
 #include "bsp/mbox.h"
 #include "bsp/rpi-gpio.h"
+#include "bsp/bcm2711.h"
 
 #define CONSOLE_DEVICE_MMU_CONFIG(_port, _file, base, size, ...) \
     {.begin = base, .end = base + size, .flags = AARCH64_MMU_DEVICE},
@@ -52,6 +54,12 @@
 BSP_START_DATA_SECTION static const aarch64_mmu_config_entry
     bsp_mmu_config_table[] = {
         AARCH64_MMU_DEFAULT_SECTIONS,
+        {
+            /* System Timer */
+            .begin = BCM2835_GPU_TIMER_BASE,
+            .end   = BCM2835_GPU_TIMER_BASE + BCM2835_GPU_TIMER_SIZE,
+            .flags = AARCH64_MMU_DEVICE,
+        },
 
         /* clang-format off */
         CONSOLE_DEVICES(CONSOLE_DEVICE_MMU_CONFIG)
