@@ -26,3 +26,5 @@ links:
     uid: ../optgtuseps
   - role: build-dependency
     uid: objirq
+  - role: build-dependency
+    uid: optsystemtimer

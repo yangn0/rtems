@@ -19,4 +19,6 @@ source:
   - bsps/shared/dev/cpucounter/cpucounterread.c
   - bsps/shared/dev/getentropy/getentropy-cpucounter.c
 
-links: []
+links: 
+  - role: build-dependency
+    uid: optsystemtimer
