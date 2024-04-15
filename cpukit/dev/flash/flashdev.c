@@ -320,7 +320,7 @@ static int rtems_flashdev_read_write(
   int status;
 
   if ( read_buff == NULL && write_buff == NULL ) {
-    return 0;
+    rtems_set_errno_and_return_minus_one( EINVAL );
   }
 
   /* Get flash address */
@@ -390,6 +390,8 @@ static int rtems_flashdev_ioctl(
     case RTEMS_FLASHDEV_IOCTL_WRITE_BLOCK_SIZE:
       err = rtems_flashdev_ioctl_write_block_size( flash, arg );
       break;
+    default:
+      err = EINVAL;
   }
 
   rtems_flashdev_release( flash );

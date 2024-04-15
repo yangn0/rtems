@@ -38,7 +38,6 @@
 
 #include <bsp.h>
 #include <dev/irq/arm-gic.h>
-#include <rtems/score/processormask.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -85,16 +84,6 @@ rtems_status_code arm_gic_irq_get_group(
   gic_group *group
 );
 
-rtems_status_code bsp_interrupt_set_affinity(
-  rtems_vector_number vector,
-  const Processor_mask *affinity
-);
-
-rtems_status_code bsp_interrupt_get_affinity(
-  rtems_vector_number vector,
-  Processor_mask *affinity
-);
-
 void arm_gic_trigger_sgi(rtems_vector_number vector, uint32_t targets);
 
 static inline rtems_status_code arm_gic_irq_generate_software_irq(
@@ -113,9 +102,11 @@ static inline rtems_status_code arm_gic_irq_generate_software_irq(
   return sc;
 }
 
+#ifdef RTEMS_SMP
 uint32_t arm_gic_irq_processor_count(void);
 
 void arm_gic_irq_initialize_secondary_cpu(void);
+#endif
 
 #ifdef __cplusplus
 }

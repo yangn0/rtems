@@ -38,17 +38,18 @@
 #include <libcpu/powerpc-utility.h>
 
 #include <bsp.h>
+#include <bsp/fatal.h>
 #include <bsp/qoriq.h>
-#include <bsp/irq.h>
-
-/* This is defined in dev/clock/clockimpl.h */
-static rtems_isr Clock_isr(void *arg);
+#include <bsp/irq-generic.h>
 
 static struct timecounter qoriq_clock_tc;
 
 #ifdef QORIQ_IS_HYPERVISOR_GUEST
 
 #define CLOCK_DRIVER_USE_ONLY_BOOT_PROCESSOR
+
+/* This is defined in dev/clock/clockimpl.h */
+static rtems_isr Clock_isr(void *arg);
 
 void qoriq_decrementer_dispatch(void)
 {
@@ -99,7 +100,9 @@ static volatile qoriq_pic_global_timer *const qoriq_timecounter =
 
 #define CLOCK_INTERRUPT (QORIQ_IRQ_GT_BASE + QORIQ_CLOCK_TIMER)
 
-static void qoriq_clock_handler_install(void)
+static rtems_interrupt_entry qoriq_clock_entry;
+
+static void qoriq_clock_handler_install(rtems_interrupt_handler handler)
 {
   rtems_status_code sc = RTEMS_SUCCESSFUL;
 
@@ -118,18 +121,22 @@ static void qoriq_clock_handler_install(void)
     NULL
   );
   if (sc != RTEMS_SUCCESSFUL) {
-    rtems_fatal_error_occurred(0xdeadbeef);
+    bsp_fatal(QORIQ_FATAL_CLOCK_INTERRUPT_SET_PRIORITY);
   }
 
-  sc = rtems_interrupt_handler_install(
+  rtems_interrupt_entry_initialize(
+    &qoriq_clock_entry,
+    handler,
+    NULL,
+    "Clock"
+  );
+  sc = rtems_interrupt_entry_install(
     CLOCK_INTERRUPT,
-    "Clock",
     RTEMS_INTERRUPT_UNIQUE,
-    Clock_isr,
-    NULL
+    &qoriq_clock_entry
   );
   if (sc != RTEMS_SUCCESSFUL) {
-    rtems_fatal_error_occurred(0xdeadbeef);
+    bsp_fatal(QORIQ_FATAL_CLOCK_INTERRUPT_INSTALL);
   }
 }
 
@@ -157,8 +164,8 @@ static void qoriq_clock_initialize(void)
   rtems_timecounter_install(&qoriq_clock_tc);
 }
 
-#define Clock_driver_support_install_isr(clock_isr) \
-  qoriq_clock_handler_install()
+#define Clock_driver_support_install_isr(isr) \
+  qoriq_clock_handler_install(isr)
 
 #define Clock_driver_support_set_interrupt_affinity(online_processors) \
   bsp_interrupt_set_affinity(CLOCK_INTERRUPT, online_processors)

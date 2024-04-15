@@ -4,14 +4,15 @@ actions:
 - define: null
 build-type: option
 copyrights:
-- Copyright (C) 2020 embedded brains GmbH & Co. KG
+- Copyright (C) 2024 embedded brains GmbH & Co. KG
 default:
 - enabled-by: true
-  value: 96000000
+  value: 100000000
 description: |
-  CPU clock in Hz
+  This option defines the Xilinx Triple-Timer Counter (TTC) reference clock in
+  Hz used by the Clock Driver.
 enabled-by: true
 format: '{}'
 links: []
-name: TMS570_CCLK
+name: XIL_CLOCK_TTC_REFERENCE_CLOCK
 type: build

@@ -3,14 +3,14 @@
 /**
  * @file
  *
- * @ingroup RTEMSBSPsARMZynq
+ * @ingroup zynq_uart
  *
  * @brief This source file contains the definition of ::BSP_output_char and
  *   ::BSP_poll_char.
  */
 
 /*
- * Copyright (C) 2013, 2017 embedded brains GmbH & Co. KG
+ * Copyright (C) 2013, 2024 embedded brains GmbH & Co. KG
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,56 +35,54 @@
  */
 
 #include <rtems/bspIo.h>
-#include <rtems/sysinit.h>
 
 #include <bsp.h>
-#include <dev/serial/zynq-uart.h>
+#include <dev/serial/zynq-uart-regs.h>
+#include <rtems/sysinit.h>
 
-#include <bspopts.h>
-
-static void zynq_debug_console_out(char c)
+static void zynq_uart_kernel_output_char(char c)
 {
-  rtems_termios_device_context *base =
-    &zynq_uart_instances[BSP_CONSOLE_MINOR].base;
+  volatile zynq_uart *regs =
+    (volatile zynq_uart *) ZYNQ_UART_KERNEL_IO_BASE_ADDR;
 
-  zynq_uart_write_polled(base, c);
+  zynq_uart_write_char_polled(regs, c);
 }
 
-static void zynq_debug_console_early_init(char c);
-
-static void zynq_debug_console_init(void)
+static int zynq_uart_kernel_poll_char(void)
 {
-  rtems_termios_device_context *base =
-    &zynq_uart_instances[BSP_CONSOLE_MINOR].base;
+  volatile zynq_uart *regs =
+    (volatile zynq_uart *) ZYNQ_UART_KERNEL_IO_BASE_ADDR;
 
-  if (BSP_output_char != zynq_debug_console_early_init) {
+  return zynq_uart_read_char_polled(regs);
+}
+
+static void zynq_uart_kernel_early_init(char c);
+
+static void zynq_uart_kernel_init(void)
+{
+  volatile zynq_uart *regs =
+    (volatile zynq_uart *) ZYNQ_UART_KERNEL_IO_BASE_ADDR;
+
+  if (BSP_output_char != zynq_uart_kernel_early_init) {
     return;
   }
 
-  zynq_uart_initialize(base);
-  BSP_output_char = zynq_debug_console_out;
+  zynq_uart_initialize(regs);
+  BSP_output_char = zynq_uart_kernel_output_char;
 }
 
-static void zynq_debug_console_early_init(char c)
+static void zynq_uart_kernel_early_init(char c)
 {
-  zynq_debug_console_init();
-  zynq_debug_console_out(c);
+  zynq_uart_kernel_init();
+  zynq_uart_kernel_output_char(c);
 }
 
-static int zynq_debug_console_in(void)
-{
-  rtems_termios_device_context *base =
-    &zynq_uart_instances[BSP_CONSOLE_MINOR].base;
+BSP_output_char_function_type BSP_output_char = zynq_uart_kernel_early_init;
 
-  return zynq_uart_read_polled(base);
-}
-
-BSP_output_char_function_type BSP_output_char = zynq_debug_console_early_init;
-
-BSP_polling_getchar_function_type BSP_poll_char = zynq_debug_console_in;
+BSP_polling_getchar_function_type BSP_poll_char = zynq_uart_kernel_poll_char;
 
 RTEMS_SYSINIT_ITEM(
-  zynq_debug_console_init,
+  zynq_uart_kernel_init,
   RTEMS_SYSINIT_BSP_START,
   RTEMS_SYSINIT_ORDER_LAST_BUT_5
 );

@@ -194,7 +194,7 @@ static void error(
   const char *dest
 )
 {
-  notify(RTEMS_MEDIA_EVENT_ERROR, state, src, dest);
+  (void) notify(RTEMS_MEDIA_EVENT_ERROR, state, src, dest);
 }
 
 static media_item *get_media_item(
@@ -434,7 +434,7 @@ static rtems_status_code process_event(
 {
   rtems_status_code sc = RTEMS_SUCCESSFUL;
   rtems_status_code sc_retry = RTEMS_SUCCESSFUL;
-  rtems_media_state state = RTEMS_MEDIA_STATE_FAILED;
+  rtems_media_state state;
   char *dest = NULL;
 
   do {
@@ -519,7 +519,7 @@ static rtems_status_code mount_worker(
       &mount_options
     );
     if (rv != 0) {
-      rmdir(mount_path);
+      (void) rmdir(mount_path);
       free(mount_path);
       (*mount_options.converter->handler->destroy)(mount_options.converter);
 

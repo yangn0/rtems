@@ -49,8 +49,6 @@ const char rtems_test_name[] = "TMCONTEXT 1";
 
 static rtems_counter_ticks t[SAMPLES];
 
-static volatile int prevent_optimization;
-
 static size_t cache_line_size;
 
 static size_t data_size;
@@ -72,42 +70,30 @@ static int dirty_data_cache(volatile int *data, size_t n, size_t clsz, int j)
   return i + j;
 }
 
-static int call_at_level(
+static __attribute__((__noipa__)) void call_at_level(
   int start,
   int fl,
-  int s,
-  bool dirty
+  int s
 )
 {
-  int prevent_optimization;
-
-  prevent_optimization = start + fl;
-
+#if defined(__sparc__)
   if (fl == start) {
-    /*
-     * Some architectures like the SPARC have register windows.  A side-effect
-     * of this context switch is that we start with a fresh window set.  On
-     * architectures like ARM or PowerPC this context switch has no effect.
-     */
-    _Context_Switch(&ctx, &ctx);
+    /* Flush register windows */
+    __asm__ volatile ("ta 3" : : : "memory");
   }
+#endif
 
   if (fl > 0) {
     call_at_level(
       start,
       fl - 1,
-      s,
-      dirty
+      s
     );
+    __asm__ volatile ("" : : : "memory");
   } else {
     char *volatile space;
     rtems_counter_ticks a;
     rtems_counter_ticks b;
-
-    if (dirty) {
-      dirty_data_cache(main_data, data_size, cache_line_size, fl);
-      rtems_cache_invalidate_entire_instruction();
-    }
 
     a = rtems_counter_read();
 
@@ -120,8 +106,6 @@ static int call_at_level(
     b = rtems_counter_read();
     t[s] = rtems_counter_difference(b, a);
   }
-
-  return prevent_optimization;
 }
 
 static void load_task(rtems_task_argument arg)
@@ -149,7 +133,7 @@ static void sort_t(void)
   qsort(&t[0], SAMPLES, sizeof(t[0]), cmp);
 }
 
-static void test_by_function_level(int fl, bool dirty)
+static __attribute__((__noipa__)) void test_by_function_level(int fl, bool dirty)
 {
   RTEMS_INTERRUPT_LOCK_DECLARE(, lock)
   rtems_interrupt_lock_context lock_context;
@@ -160,13 +144,16 @@ static void test_by_function_level(int fl, bool dirty)
   uint64_t q3;
   uint64_t max;
 
-  fl += prevent_optimization;
-
   rtems_interrupt_lock_initialize(&lock, "test");
   rtems_interrupt_lock_acquire(&lock, &lock_context);
 
   for (s = 0; s < SAMPLES; ++s) {
-    call_at_level(fl, fl, s, dirty);
+    if (dirty) {
+      dirty_data_cache(main_data, data_size, cache_line_size, fl);
+      rtems_cache_invalidate_entire_instruction();
+    }
+
+    call_at_level(fl, fl, s);
   }
 
   rtems_interrupt_lock_release(&lock, &lock_context);
@@ -181,14 +168,8 @@ static void test_by_function_level(int fl, bool dirty)
   max = t[SAMPLES - 1];
 
   printf(
-    "    <Sample functionNestLevel=\"%i\">\n"
-    "      <Min unit=\"ns\">%" PRIu64 "</Min>"
-      "<Q1 unit=\"ns\">%" PRIu64 "</Q1>"
-      "<Q2 unit=\"ns\">%" PRIu64 "</Q2>"
-      "<Q3 unit=\"ns\">%" PRIu64 "</Q3>"
-      "<Max unit=\"ns\">%" PRIu64 "</Max>\n"
-    "    </Sample>\n",
-    fl,
+    "%s\n      [%" PRIu64 ", %" PRIu64 ", %" PRIu64 ", %" PRIu64 ", %" PRIu64 "]",
+    fl == 0 ? "" : ",",
     rtems_counter_ticks_to_nanoseconds(min),
     rtems_counter_ticks_to_nanoseconds(q1),
     rtems_counter_ticks_to_nanoseconds(q2),
@@ -197,26 +178,38 @@ static void test_by_function_level(int fl, bool dirty)
   );
 }
 
-static void test(bool dirty, uint32_t load)
+static void test(bool first, bool dirty, uint32_t load)
 {
   int fl;
 
   printf(
-    "  <ContextSwitchTest environment=\"%s\"",
-    dirty ? "dirty" : "normal"
+    "\n  %s{\n"
+    "    \"environment\": \"",
+    first ? "" : "}, "
   );
 
-  if (load > 0) {
-    printf(" load=\"%" PRIu32 "\"", load);
+  if (dirty) {
+    if (load > 0) {
+      printf("Load/%" PRIu32 "", load);
+    } else {
+      printf("DirtyCache");
+    }
+  } else {
+    printf("HotCache");
   }
 
-  printf(">\n");
+  printf(
+    "\",\n"
+    "    \"stats-by-function-nest-level\": ["
+  );
 
   for (fl = 0; fl < FUNCTION_LEVELS; ++fl) {
     test_by_function_level(fl, dirty);
   }
 
-  printf("  </ContextSwitchTest>\n");
+  printf(
+    "\n    ]"
+  );
 }
 
 static void Init(rtems_task_argument arg)
@@ -225,7 +218,7 @@ static void Init(rtems_task_argument arg)
 
   TEST_BEGIN();
 
-  printf("<Test>\n");
+  printf("*** BEGIN OF JSON DATA ***\n[");
 
   cache_line_size = rtems_cache_get_data_line_size();
   if (cache_line_size == 0) {
@@ -240,8 +233,8 @@ static void Init(rtems_task_argument arg)
   main_data = malloc(data_size);
   rtems_test_assert(main_data != NULL);
 
-  test(false, load);
-  test(true, load);
+  test(true, false, load);
+  test(false, true, load);
 
   for (load = 1; load < rtems_scheduler_get_processor_maximum(); ++load) {
     rtems_status_code sc;
@@ -266,10 +259,10 @@ static void Init(rtems_task_argument arg)
     sc = rtems_task_start(id, load_task, (rtems_task_argument) load_data);
     rtems_test_assert(sc == RTEMS_SUCCESSFUL);
 
-    test(true, load);
+    test(false, true, load);
   }
 
-  printf("</Test>\n");
+  printf("\n  }\n]\n*** END OF JSON DATA ***\n");
 
   TEST_END();
   rtems_test_exit(0);

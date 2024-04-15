@@ -1,11 +1,16 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+
 /**
  * @file
  *
  * @ingroup RTEMSBSPsARMTMS570
  *
- * @brief TMS570 selftest support functions implementation.
+ * @brief This source file contains the selftest support implementation.
  */
+
 /*
+ * Copyright (C) 2023 embedded brains GmbH & Co. KG
+ * Copyright (C) 2022 Airbus U.S. Space & Defense, Inc
  * Copyright (C) 2009-2015 Texas Instruments Incorporated - www.ti.com
  *
  *
@@ -45,6 +50,32 @@
 #include <bsp/tms570.h>
 #include <bsp/tms570_selftest.h>
 #include <bsp/tms570_hwinit.h>
+
+/*
+ * According to the TMS570LS3137 (HCLK max 180MHz, VCLK max 100MHz) and
+ * TMS570LC4357 (GCLK1 max 300MHz, VCLK max 110MHz, HCLK max 150MHz)
+ * datasheets, the PBIST ROM clock frequency is limited to 90MHz.
+ *
+ * For LS3137 PBIST ROM clock frequency = HCLK  / (1 << MSTGCR[9:8])
+ *
+ * For LC4357 PBIST ROM clock frequency = GCLK1 / (1 << MSTGCR[9:8])
+ */
+#if TMS570_VARIANT == 4357
+#define MSTGCR_ENABLE_MEMORY_SELF_TEST 0x0000020a
+#define MSTGCR_DISABLE_MEMORY_SELF_TEST 0x00000205
+#define PBIST_RESET_DELAY (64 * 4)
+#else
+#define MSTGCR_ENABLE_MEMORY_SELF_TEST 0x0000010a
+#define MSTGCR_DISABLE_MEMORY_SELF_TEST 0x00000105
+#define PBIST_RESET_DELAY (32 * 2)
+#endif
+
+static void tms570_pbist_reset_delay( void )
+{
+  for ( int i = 0; i < PBIST_RESET_DELAY; ++i ) {
+    __asm__ volatile ( "" );
+  }
+}
 
 /**
  * @brief Checks to see if the EFUSE Stuck at zero test is completed successfully (HCG:efcStuckZeroTest).
@@ -229,7 +260,6 @@ uint32_t tms570_efc_check( void )
 /* Requirements : HL_SR399 */
 void tms570_pbist_self_check( void )
 {
-  volatile uint32_t i = 0U;
   uint32_t          PBIST_wait_done_loop = 0U;
 
   /* Run a diagnostic check on the memory self-test controller */
@@ -238,15 +268,14 @@ void tms570_pbist_self_check( void )
   /* Disable PBIST clocks and ROM clock */
   TMS570_PBIST.PACT = 0x0U;
 
-  /* PBIST ROM clock frequency = HCLK frequency /2 */
   /* Disable memory self controller */
-  TMS570_SYS1.MSTGCR = 0x00000105U;
+  TMS570_SYS1.MSTGCR = MSTGCR_DISABLE_MEMORY_SELF_TEST;
 
   /* Disable Memory Initialization controller */
   TMS570_SYS1.MINITGCR = 0x5U;
 
   /* Enable memory self controller */
-  TMS570_SYS1.MSTGCR = 0x0000010AU;
+  TMS570_SYS1.MSTGCR = MSTGCR_ENABLE_MEMORY_SELF_TEST;
 
   /* Clear PBIST Done */
   TMS570_SYS1.MSTCGSTAT = 0x1U;
@@ -254,14 +283,10 @@ void tms570_pbist_self_check( void )
   /* Enable PBIST controller */
   TMS570_SYS1.MSIENA = 0x1U;
 
-  /* wait for 32 VBUS clock cycles at least, based on HCLK to VCLK ratio */
-  /*SAFETYMCUSW 134 S MR:12.2 <APPROVED> "Wait for few clock cycles (Value of i not used)" */
-  /*SAFETYMCUSW 134 S MR:12.2 <APPROVED> "Wait for few clock cycles (Value of i not used)" */
-  for ( i = 0U; i < ( 32U + ( 32U * 1U ) ); i++ ) { /* Wait */
-  }
+  tms570_pbist_reset_delay();
 
   /* Enable PBIST clocks and ROM clock */
-  TMS570_PBIST.PACT = 0x3U;
+  TMS570_PBIST.PACT = 0x1U;
 
   /* CPU control of PBIST */
   TMS570_PBIST.DLR = 0x10U;
@@ -328,11 +353,8 @@ void tms570_pbist_run(
   uint32_t algomask
 )
 {
-  volatile uint32_t i = 0U;
-
-  /* PBIST ROM clock frequency = HCLK frequency /2 */
   /* Disable memory self controller */
-  TMS570_SYS1.MSTGCR = 0x00000105U;
+  TMS570_SYS1.MSTGCR = MSTGCR_DISABLE_MEMORY_SELF_TEST;
 
   /* Disable Memory Initialization controller */
   TMS570_SYS1.MINITGCR = 0x5U;
@@ -341,16 +363,12 @@ void tms570_pbist_run(
   TMS570_SYS1.MSIENA = 0x1U;
 
   /* Enable memory self controller */
-  TMS570_SYS1.MSTGCR = 0x0000010AU;
+  TMS570_SYS1.MSTGCR = MSTGCR_ENABLE_MEMORY_SELF_TEST;
 
-  /* wait for 32 VBUS clock cycles at least, based on HCLK to VCLK ratio */
-  /*SAFETYMCUSW 134 S MR:12.2 <APPROVED> "Wait for few clock cycles (Value of i not used)" */
-  /*SAFETYMCUSW 134 S MR:12.2 <APPROVED> "Wait for few clock cycles (Value of i not used)" */
-  for ( i = 0U; i < ( 32U + ( 32U * 1U ) ); i++ ) { /* Wait */
-  }
+  tms570_pbist_reset_delay();
 
   /* Enable PBIST clocks and ROM clock */
-  TMS570_PBIST.PACT = 0x3U;
+  TMS570_PBIST.PACT = 0x1U;
 
   /* Select all algorithms to be tested */
   TMS570_PBIST.ALGO = algomask;
@@ -424,6 +442,33 @@ bool tms570_pbist_is_test_passed( void )
 }
 
 /**
+ * Helper method that will run a pbist test and blocks until it finishes
+ * Reduces code duplication in start system start hooks
+ */
+void tms570_pbist_run_and_check(uint32_t raminfoL, uint32_t algomask)
+{
+  /* Run PBIST on region */
+  tms570_pbist_run(raminfoL, algomask);
+
+  /* Wait for PBIST for region to be completed */
+  /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
+  while (!tms570_pbist_is_test_completed()) {
+  }                                                  /* Wait */
+
+  /* Check if PBIST on region passed the self-test */
+  if (!tms570_pbist_is_test_passed()) {
+    /* PBIST and region failed the self-test.
+     * Need custom handler to check the memory failure
+     * and to take the appropriate next step.
+     */
+    tms570_pbist_fail();
+  }
+
+  /* Disable PBIST clocks and disable memory self-test mode */
+  tms570_pbist_stop();
+}
+
+/**
  * @brief Checks to see if the PBIST Port test is completed successfully (HCG:pbistPortTestStatus)
  * @param[in] port   - Select the port to get the status.
  * @return 1 if PBIST Port test completed successfully, otherwise 0.
@@ -490,21 +535,27 @@ void tms570_pbist_fail( void )
 /* SourceId : SELFTEST_SourceId_002 */
 /* DesignId : SELFTEST_DesignId_004 */
 /* Requirements : HL_SR396 */
-void tms570_memory_init( uint32_t ram )
+__attribute__((__naked__)) void tms570_memory_init( uint32_t ram )
 {
-  /* Enable Memory Hardware Initialization */
-  TMS570_SYS1.MINITGCR = 0xAU;
-
-  /* Enable Memory Hardware Initialization for selected RAM's */
-  TMS570_SYS1.MSIENA = ram;
-
-  /* Wait until Memory Hardware Initialization complete */
-  /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
-  while ( ( TMS570_SYS1.MSTCGSTAT & 0x00000100U ) != 0x00000100U ) {
-  }                                                              /* Wait */
-
-  /* Disable Memory Hardware Initialization */
-  TMS570_SYS1.MINITGCR = 0x5U;
+  __asm__ volatile (
+    /* Load memory controller base address */
+    "ldr r1, =#0xffffff00\n"
+    /* Enable Memory Hardware Initialization (MINITGCR) */
+    "movs r2, #0xa\n"
+    "str r2, [r1, #0x5c]\n"
+    /* Enable Memory Hardware Initialization for selected RAM's (MSIENA) */
+    "str r0, [r1, #0x60]\n"
+    /* Wait until Memory Hardware Initialization completes (MSTCGSTAT) */
+    /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
+    "1: ldr r2, [r1, #0x68]\n"
+    "tst r2, #0x100\n"
+    "beq 1b\n"
+    /* Disable Memory Hardware Initialization (MINITGCR) */
+    "movs r2, #0x5\n"
+    "str r2, [r1, #0x5c]\n"
+    /* Return */
+    "bx lr\n"
+  );
 }
 
 volatile uint32_t *const

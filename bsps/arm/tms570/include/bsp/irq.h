@@ -1,13 +1,15 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 /**
  * @file
  *
  * @ingroup RTEMSBSPsARMTMS570
  *
- * @brief TMS570 interrupt definitions.
+ * @brief This header file provides TMS570 interrupt definitions.
  */
 
 /*
- * Copyright (c) 2014 Premysl Houdek <kom541000@gmail.com>
+ * Copyright (C) 2014 Premysl Houdek <kom541000@gmail.com>
  *
  * Google Summer of Code 2014 at
  * Czech Technical University in Prague
@@ -15,12 +17,26 @@
  * 166 36 Praha 6
  * Czech Republic
  *
- * Based on LPC24xx and LPC1768 BSP
- * by embedded brains GmbH & Co. KG and others
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * The license and distribution terms for this file may be
- * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef LIBBSP_ARM_TMS570_IRQ_H
@@ -124,33 +140,56 @@
 #ifndef ASM
 
 /**
- * @brief Set priority of the interrupt vector.
+ * @brief Sets the priority of the interrupt vector.
  *
- * This function is here because of compability. It should set
- * priority of the interrupt vector.
- * @warning It does not set any priority at HW layer. It is nearly imposible to
- * @warning set priority of the interrupt on TMS570 in a nice way.
- * @param[in] vector vector of isr
- * @param[in] priority new priority assigned to the vector
- * @return Void
+ * The priority is defined by the VIM interrupt channel.  Firstly, the VIM
+ * Interrupt Control (CHANCTRL) registers are searched to get the current
+ * channel associated with the interrupt vector.  The interrupt vector of the
+ * channel associated with the priority is assigned to this channel.  The
+ * specified interrupt vector is assigned to the channel associated with the
+ * priority.  So, this function swaps the channels of two interrupt vectors.
+ *
+ * @param vector is the number of the interrupt vector to set the priority.
+ *
+ * @param priority is the priority to set.
+ *
+ * @retval ::RTEMS_SUCCESSFUL The requested operation was successful.
+ *
+ * @retval ::RTEMS_INVALID_ID There was no interrupt vector associated with the
+ *   number specified by ``vector``.
+ *
+ * @retval ::RTEMS_INVALID_PRIORITY The interrupt priority specified in
+ *   ``priority`` was invalid.
  */
-void tms570_irq_set_priority(
+rtems_status_code tms570_irq_set_priority(
   rtems_vector_number vector,
-  unsigned            priority
+  uint32_t            priority
 );
 
 /**
- * @brief Gets priority of the interrupt vector.
+ * @brief Gets the priority of the interrupt vector.
  *
- * This function is here because of compability. It returns priority
- * of the isr vector last set by tms570_irq_set_priority function.
+ * The priority is defined by the VIM interrupt channel.  The VIM Interrupt
+ * Control (CHANCTRL) registers are searched to get the channel associated with
+ * the interrupt vector.
  *
- * @warning It does not return any real priority of the HW layer.
- * @param[in] vector vector of isr
- * @retval 0 vector is invalid.
- * @retval priority priority of the interrupt
+ * @param vector is the number of the interrupt vector to set the priority.
+ *
+ * @param priority is the priority to set.
+ *
+ * @retval ::RTEMS_SUCCESSFUL The requested operation was successful.
+ *
+ * @retval ::RTEMS_INVALID_ADDRESS The ``priority`` parameter was NULL.
+ *
+ * @retval ::RTEMS_INVALID_ID There was no interrupt vector associated with the
+ *   number specified by ``vector``.
+ *
+ * @retval ::RTEMS_NOT_DEFINED The interrupt has no associated priority.
  */
-unsigned tms570_irq_get_priority( rtems_vector_number vector );
+rtems_status_code tms570_irq_get_priority(
+  rtems_vector_number  vector,
+  uint32_t            *priority
+);
 
 #endif /* ASM */
 

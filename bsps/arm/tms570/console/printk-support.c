@@ -1,13 +1,17 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 /**
  * @file
  *
  * @ingroup RTEMSBSPsARMTMS570
  *
- * @brief definitions of serial line for debugging.
+ * @brief This source file contains the definition of ::BSP_output_char and
+ *   ::BSP_poll_char.
  */
 
 /*
- * Copyright (c) 2014 Premysl Houdek <kom541000@gmail.com>
+ * Copyright (C) 2023 embedded brains GmbH & Co. KG
+ * Copyright (C) 2014 Premysl Houdek <kom541000@gmail.com>
  *
  * Google Summer of Code 2014 at
  * Czech Technical University in Prague
@@ -15,19 +19,32 @@
  * 166 36 Praha 6
  * Czech Republic
  *
- * Based on LPC24xx and LPC1768 BSP
- * by embedded brains GmbH & Co. KG and others
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * The license and distribution terms for this file may be
- * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <rtems/bspIo.h>
 #include <rtems/sysinit.h>
 #include <stdint.h>
 #include <string.h>
-#include <bsp/tms570-sci.h>
 #include <bsp/tms570-sci-driver.h>
 
 #define TMS570_CONSOLE (&driver_context_table[0])
@@ -39,33 +56,33 @@
  *
  * @retval Void
  */
-static void tms570_debug_console_putc(char ch)
+static void tms570_debug_console_out(char ch)
 {
   tms570_sci_context *ctx = TMS570_CONSOLE;
   volatile tms570_sci_t *regs = ctx->regs;
-  rtems_interrupt_level level;
 
-  rtems_interrupt_disable(level);
-  while ( ( regs->FLR & TMS570_SCI_FLR_TXRDY ) == 0) {
-    rtems_interrupt_flash(level);
+  while ( true ) {
+    rtems_interrupt_level level;
+
+    while ( ( regs->FLR & TMS570_SCI_FLR_TXRDY ) == 0) {
+      /* Wait */
+    }
+
+    rtems_interrupt_disable( level );
+
+    if ( ( regs->FLR & TMS570_SCI_FLR_TXRDY ) != 0) {
+      regs->TD = ch;
+      rtems_interrupt_enable( level );
+
+      break;
+    }
+
+    rtems_interrupt_enable( level );
   }
-  regs->TD = ch;
+
   while ( ( regs->FLR & TMS570_SCI_FLR_TX_EMPTY ) == 0) {
-    rtems_interrupt_flash(level);
+    /* Wait */
   }
-  rtems_interrupt_enable(level);
-}
-
-/**
- * @brief debug console output
- *
- * debug functions always use serial dev 0 peripheral
- *
- * @retval Void
- */
-static void tms570_debug_console_out(char c)
-{
-  tms570_debug_console_putc(c);
 }
 
 static void tms570_debug_console_init(void)
@@ -75,7 +92,7 @@ static void tms570_debug_console_init(void)
 
   tms570_sci_initialize(ctx);
   memset(&term, 0, sizeof(term));
-  cfsetospeed(&term, B115200);
+  term.c_ospeed = B115200;
   tms570_sci_set_attributes(&ctx->base, &term);
   BSP_output_char = tms570_debug_console_out;
 }

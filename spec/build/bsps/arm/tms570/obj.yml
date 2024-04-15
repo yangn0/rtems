@@ -18,10 +18,7 @@ install:
   - bsps/arm/tms570/include/bsp/tms570-pinmux.h
   - bsps/arm/tms570/include/bsp/tms570-pins.h
   - bsps/arm/tms570/include/bsp/tms570-pom.h
-  - bsps/arm/tms570/include/bsp/tms570-rti.h
   - bsps/arm/tms570/include/bsp/tms570-sci-driver.h
-  - bsps/arm/tms570/include/bsp/tms570-sci.h
-  - bsps/arm/tms570/include/bsp/tms570-vim.h
   - bsps/arm/tms570/include/bsp/tms570.h
   - bsps/arm/tms570/include/bsp/tms570_hwinit.h
   - bsps/arm/tms570/include/bsp/tms570_selftest.h
@@ -68,10 +65,11 @@ install:
   - bsps/arm/tms570/include/bsp/ti_herc/reg_vim.h
 - destination: ${BSP_LIBDIR}
   source:
+  - bsps/arm/tms570/start/linkcmds.tms570lc4357_hdk
+  - bsps/arm/tms570/start/linkcmds.tms570lc4357_hdk_sdram
   - bsps/arm/tms570/start/linkcmds.tms570ls3137_hdk
   - bsps/arm/tms570/start/linkcmds.tms570ls3137_hdk_intram
   - bsps/arm/tms570/start/linkcmds.tms570ls3137_hdk_sdram
-  - bsps/arm/tms570/start/linkcmds.tms570ls3137_hdk_with_loader
 links: []
 source:
 - bsps/arm/shared/cp15/arm-cp15-set-exception-handler.c
@@ -83,6 +81,7 @@ source:
 - bsps/arm/tms570/cpucounter/cpucounterread.c
 - bsps/arm/tms570/irq/irq.c
 - bsps/arm/tms570/start/bspreset.c
+- bsps/arm/tms570/start/bsprestart.c
 - bsps/arm/tms570/start/bspstart.c
 - bsps/arm/tms570/start/pinmux.c
 - bsps/arm/tms570/start/tms570-pom.c

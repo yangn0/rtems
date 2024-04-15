@@ -1,26 +1,24 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+
 /**
  * @file
  *
  * @ingroup RTEMSBSPsARMTMS570
  *
- * @brief TCRAM selftest function.
+ * @brief This source file contains TCRAM selftest functions.
  */
+
 /*
- * Copyright (c) 2016 Pavel Pisa <pisa@cmp.felk.cvut.cz>
+ * Copyright (C) 2016 Pavel Pisa <pisa@cmp.felk.cvut.cz>
  *
  * Czech Technical University in Prague
  * Zikova 1903/4
  * 166 36 Praha 6
  * Czech Republic
  *
- * The license and distribution terms for this file may be
- * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
- *
  * Algorithms are based on Ti manuals and Ti HalCoGen generated
  * code available under following copyright.
- */
-/*
+ *
  * Copyright (C) 2009-2015 Texas Instruments Incorporated - www.ti.com
  *
  *
@@ -58,6 +56,8 @@
 #include <bsp/tms570.h>
 #include <bsp/tms570_selftest.h>
 #include <bsp/tms570_hwinit.h>
+
+#if TMS570_VARIANT == 3137
 
 #define tcramA1bitError (*(volatile uint32_t *)(0x08400000U))
 #define tcramA2bitError (*(volatile uint32_t *)(0x08400010U))
@@ -183,3 +183,5 @@ void  tms570_check_tcram_ecc( void )
   tcramA2bit = tcramA2_bk;
   tcramB2bit = tcramB2_bk;
 }
+
+#endif /* TMS570_VARIANT */

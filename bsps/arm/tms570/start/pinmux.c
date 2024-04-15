@@ -1,13 +1,16 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 /**
  * @file
  *
  * @ingroup RTEMSBSPsARMTMS570
  *
- * @brief I/O Multiplexing Module (IOMM) basic support
+ * @brief This source file contains the I/O Multiplexing Module (IOMM) support
+ *   implementation.
  */
 
 /*
- * Copyright (c) 2015 Premysl Houdek <kom541000@gmail.com>
+ * Copyright (C) 2015 Premysl Houdek <kom541000@gmail.com>
  *
  * Google Summer of Code 2014 at
  * Czech Technical University in Prague
@@ -15,9 +18,26 @@
  * 166 36 Praha 6
  * Czech Republic
  *
- * The license and distribution terms for this file may be
- * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <bsp/tms570.h>
@@ -34,7 +54,7 @@ tms570_bsp_pin_to_pinmmrx(volatile uint32_t **pinmmrx, uint32_t *pin_shift,
                           uint32_t config)
 {
   uint32_t pin_num = (config & TMS570_PIN_NUM_MASK) >> TMS570_PIN_NUM_SHIFT;
-  *pinmmrx = &TMS570_IOMM.PINMUX.PINMMR0 + (pin_num >> 2);
+  *pinmmrx = TMS570_PINMUX + (pin_num >> 2);
   *pin_shift = (pin_num & 0x3)*8;
 }
 
@@ -158,17 +178,7 @@ tms570_bsp_pinmmr_config(const uint32_t *pinmmr_values, int reg_start, int reg_c
 
   tms570_pin_config_prepare();
 
-  pinmmrx = (&TMS570_IOMM.PINMUX.PINMMR0) + reg_start;
-  pval = pinmmr_values;
-  cnt = reg_count;
-
-  do {
-    *pinmmrx = *pinmmrx & *pval;
-    pinmmrx++;
-    pval++;
-  } while( --cnt );
-
-  pinmmrx = (&TMS570_IOMM.PINMUX.PINMMR0) + reg_start;
+  pinmmrx = TMS570_PINMUX + reg_start;
   pval = pinmmr_values;
   cnt = reg_count;
 

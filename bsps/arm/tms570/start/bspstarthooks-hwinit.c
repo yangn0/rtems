@@ -1,3 +1,44 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+
+/**
+ * @file
+ *
+ * @ingroup RTEMSBSPsARMTMS570
+ *
+ * @brief This source file contains the bsp_start_hook_0() implementation.
+ */
+
+/*
+ * Copyright (C) 2023 embedded brains GmbH & Co. KG
+ * Copyright (C) 2016 Pavel Pisa <pisa@cmp.felk.cvut.cz>
+ *
+ * Czech Technical University in Prague
+ * Zikova 1903/4
+ * 166 36 Praha 6
+ * Czech Republic
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include <stdint.h>
 #include <bsp.h>
 #include <bsp/start.h>
@@ -6,27 +47,38 @@
 #include <bsp/tms570_selftest.h>
 #include <bsp/tms570_selftest_parity.h>
 #include <bsp/tms570_hwinit.h>
-
-static inline
-int tms570_running_from_tcram( void )
-{
-  void *fncptr = (void*)bsp_start_hook_0;
-  return ( fncptr >= (void*)TMS570_TCRAM_START_PTR ) &&
-         ( fncptr < (void*)TMS570_TCRAM_WINDOW_END_PTR );
-}
-
-static inline
-int tms570_running_from_sdram( void )
-{
-  void *fncptr = (void*)bsp_start_hook_0;
-  return ( ( (void*)fncptr >= (void*)TMS570_SDRAM_START_PTR ) &&
-           ( (void*)fncptr < (void*)TMS570_SDRAM_WINDOW_END_PTR ) );
-}
+#include <bsp/ti_herc/errata_SSWF021_45.h>
 
 #define PBIST_March13N_SP        0x00000008U  /**< March13 N Algo for 1 Port mem */
 
-BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
+/* Use assembly code to avoid using the stack */
+__attribute__((__naked__)) void bsp_start_hook_0( void )
 {
+  __asm__ volatile (
+    /* Check if we run in SRAM */
+    "ldr r0, =#" RTEMS_XSTRING( TMS570_MEMORY_SRAM_ORIGIN ) "\n"
+    "ldr r1, =#" RTEMS_XSTRING( TMS570_MEMORY_SRAM_SIZE ) "\n"
+    "sub r0, lr, r0\n"
+    "cmp r1, r0\n"
+    "blt 1f\n"
+
+    /*
+     * Initialize the SRAM if we are not running in SRAM.  While we are called,
+     * non-volatile register r7 is not used by start.S.
+     */
+    "movs r0, #0x1\n"
+    "mov r7, lr\n"
+    "bl tms570_memory_init\n"
+    "mov lr, r7\n"
+
+    /* Jump to the high level start hook */
+    "1: b tms570_start_hook_0\n"
+  );
+}
+
+static RTEMS_USED void tms570_start_hook_0( void )
+{
+#if TMS570_VARIANT == 3137
   /*
    * Work Around for Errata DEVICE#140: ( Only on Rev A silicon)
    *
@@ -38,6 +90,15 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
   if ( TMS570_SYS1.DEVID == 0x802AAD05U ) {
     _esmCcmErrorsClear_();
   }
+#endif
+
+#if TMS570_VARIANT == 4357
+  uint32_t pll_result;
+
+  do {
+    pll_result = _errata_SSWF021_45_both_plls(10);
+  } while (pll_result != 0 && pll_result != 4);
+#endif
 
   /* Enable CPU Event Export */
   /* This allows the CPU to signal any single-bit or double-bit errors detected
@@ -45,58 +106,13 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
    */
   _coreEnableEventBusExport_();
 
+#if TMS570_VARIANT == 3137
   /* Workaround for Errata CORTEXR4 66 */
   _errata_CORTEXR4_66_();
 
   /* Workaround for Errata CORTEXR4 57 */
   _errata_CORTEXR4_57_();
-
-  /* check for power-on reset condition */
-  /*SAFETYMCUSW 139 S MR:13.7 <APPROVED> "Hardware status bit read check" */
-  if ( ( TMS570_SYS1.SYSESR & TMS570_SYS1_SYSESR_PORST ) != 0U ) {
-    /* clear all reset status flags */
-    TMS570_SYS1.SYSESR = 0xFFFFU;
-
-    /* continue with normal start-up sequence */
-  }
-  /*SAFETYMCUSW 139 S MR:13.7 <APPROVED> "Hardware status bit read check" */
-  else if ( ( TMS570_SYS1.SYSESR & TMS570_SYS1_SYSESR_OSCRST ) != 0U ) {
-    /* Reset caused due to oscillator failure.
-       Add user code here to handle oscillator failure */
-  }
-  /*SAFETYMCUSW 139 S MR:13.7 <APPROVED> "Hardware status bit read check" */
-  else if ( ( TMS570_SYS1.SYSESR & TMS570_SYS1_SYSESR_WDRST ) != 0U ) {
-    /* Reset caused due
-     *  1) windowed watchdog violation - Add user code here to handle watchdog violation.
-     *  2) ICEPICK Reset - After loading code via CCS / System Reset through CCS
-     */
-    /* Check the WatchDog Status register */
-    if ( TMS570_RTI.WDSTATUS != 0U ) {
-      /* Add user code here to handle watchdog violation. */
-      /* Clear the Watchdog reset flag in Exception Status register */
-      TMS570_SYS1.SYSESR = TMS570_SYS1_SYSESR_WDRST;
-    } else {
-      /* Clear the ICEPICK reset flag in Exception Status register */
-      TMS570_SYS1.SYSESR = TMS570_SYS1_SYSESR_WDRST;
-    }
-  }
-  /*SAFETYMCUSW 139 S MR:13.7 <APPROVED> "Hardware status bit read check" */
-  else if ( ( TMS570_SYS1.SYSESR & TMS570_SYS1_SYSESR_CPURST ) != 0U ) {
-    /* Reset caused due to CPU reset.
-       CPU reset can be caused by CPU self-test completion, or
-       by toggling the "CPU RESET" bit of the CPU Reset Control Register. */
-
-    /* clear all reset status flags */
-    TMS570_SYS1.SYSESR = TMS570_SYS1_SYSESR_CPURST;
-  }
-  /*SAFETYMCUSW 139 S MR:13.7 <APPROVED> "Hardware status bit read check" */
-  else if ( ( TMS570_SYS1.SYSESR & TMS570_SYS1_SYSESR_SWRST ) != 0U ) {
-    /* Reset caused due to software reset.
-       Add user code to handle software reset. */
-  } else {
-    /* Reset caused by nRST being driven low externally.
-       Add user code to handle external reset. */
-  }
+#endif
 
   /*
    * Check if there were ESM group3 errors during power-up.
@@ -111,8 +127,20 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
     /*SAFETYMCUSW 5 C MR:NA <APPROVED> "for(;;) can be removed by adding "# if 0" and "# endif" in the user codes above and below" */
     /*SAFETYMCUSW 26 S MR:NA <APPROVED> "for(;;) can be removed by adding "# if 0" and "# endif" in the user codes above and below" */
     /*SAFETYMCUSW 28 D MR:NA <APPROVED> "for(;;) can be removed by adding "# if 0" and "# endif" in the user codes above and below" */
+#if TMS570_VARIANT == 4357
+    /*
+     * During code-loading/debug-resets SR[2][4] may get set (indicates double
+     * ECC error in internal RAM) ignore for now as its resolved with ESM
+     * init/reset below.
+     */
+    if ((TMS570_SYS1.SYSESR & TMS570_SYS1_SYSESR_DBGRST) == 0) {
+      for (;; ) {
+      }           /* Wait */
+    }
+#else
     for (;; ) {
     }           /* Wait */
+#endif
   }
 
   /* Initialize System - Clock, Flash settings with Efuse self check */
@@ -131,46 +159,12 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
   tms570_pbist_self_check();
 
   /* Run PBIST on STC ROM */
-  tms570_pbist_run( (uint32_t) STC_ROM_PBIST_RAM_GROUP,
+  tms570_pbist_run_and_check( (uint32_t) STC_ROM_PBIST_RAM_GROUP,
     ( (uint32_t) PBIST_TripleReadSlow | (uint32_t) PBIST_TripleReadFast ) );
-
-  /* Wait for PBIST for STC ROM to be completed */
-  /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
-  while ( tms570_pbist_is_test_completed() != TRUE ) {
-  }                                                  /* Wait */
-
-  /* Check if PBIST on STC ROM passed the self-test */
-  if ( tms570_pbist_is_test_passed() != TRUE ) {
-    /* PBIST and STC ROM failed the self-test.
-     * Need custom handler to check the memory failure
-     * and to take the appropriate next step.
-     */
-    tms570_pbist_fail();
-  }
-
-  /* Disable PBIST clocks and disable memory self-test mode */
-  tms570_pbist_stop();
 
   /* Run PBIST on PBIST ROM */
-  tms570_pbist_run( (uint32_t) PBIST_ROM_PBIST_RAM_GROUP,
+  tms570_pbist_run_and_check( (uint32_t) PBIST_ROM_PBIST_RAM_GROUP,
     ( (uint32_t) PBIST_TripleReadSlow | (uint32_t) PBIST_TripleReadFast ) );
-
-  /* Wait for PBIST for PBIST ROM to be completed */
-  /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
-  while ( tms570_pbist_is_test_completed() != TRUE ) {
-  }                                                  /* Wait */
-
-  /* Check if PBIST ROM passed the self-test */
-  if ( tms570_pbist_is_test_passed() != TRUE ) {
-    /* PBIST and STC ROM failed the self-test.
-     * Need custom handler to check the memory failure
-     * and to take the appropriate next step.
-     */
-    tms570_pbist_fail();
-  }
-
-  /* Disable PBIST clocks and disable memory self-test mode */
-  tms570_pbist_stop();
 
   if ( !tms570_running_from_tcram() ) {
     /*
@@ -199,34 +193,8 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
      * The CPU RAM is a single-port memory. The actual "RAM Group" for all on-chip SRAMs is defined in the
      * device datasheet.
      */
-    tms570_pbist_run( 0x08300020U,   /* ESRAM Single Port PBIST */
+    tms570_pbist_run_and_check( 0x08300020U,   /* ESRAM Single Port PBIST */
       (uint32_t) PBIST_March13N_SP );
-
-    /* Wait for PBIST for CPU RAM to be completed */
-    /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
-    while ( tms570_pbist_is_test_completed() != TRUE ) {
-    }                                                  /* Wait */
-
-    /* Check if CPU RAM passed the self-test */
-    if ( tms570_pbist_is_test_passed() != TRUE ) {
-      /* CPU RAM failed the self-test.
-       * Need custom handler to check the memory failure
-       * and to take the appropriate next step.
-       */
-      tms570_pbist_fail();
-    }
-
-    /* Disable PBIST clocks and disable memory self-test mode */
-    tms570_pbist_stop();
-
-    /*
-     * Initialize CPU RAM.
-     * This function uses the system module's hardware for auto-initialization of memories and their
-     * associated protection schemes. The CPU RAM is initialized by setting bit 0 of the MSIENA register.
-     * Hence the value 0x1 passed to the function.
-     * This function will initialize the entire CPU RAM and the corresponding ECC locations.
-     */
-    tms570_memory_init( 0x1U );
 
     /*
      * Enable ECC checking for TCRAM accesses.
@@ -261,6 +229,7 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
 
   if ( !tms570_running_from_tcram() ) {
 
+#if TMS570_VARIANT == 3137
     /* Test the CPU ECC mechanism for RAM accesses.
      * The checkBxRAMECC functions cause deliberate single-bit and double-bit errors in TCRAM accesses
      * by corrupting 1 or 2 bits in the ECC. Reading from the TCRAM location with a 2-bit error
@@ -269,6 +238,7 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
      * following the one that caused the abort.
      */
     tms570_check_tcram_ecc();
+#endif
 
     /* Wait for PBIST for CPU RAM to be completed */
     /*SAFETYMCUSW 28 D MR:NA <APPROVED> "Hardware status bit read check" */
@@ -316,17 +286,18 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
   /* NOTE : Please Refer DEVICE DATASHEET for the list of Supported Memories and their channel numbers.
             Memory Initialization is perfomed only on the user selected memories in HALCoGen's GUI SAFETY INIT tab.
    */
-  tms570_memory_init( (uint32_t) ( (uint32_t) 1U << 1U ) |  /* DMA RAM */
-    (uint32_t) ( (uint32_t) 1U << 2U ) |                /* VIM RAM */
-    (uint32_t) ( (uint32_t) 1U << 5U ) |                /* CAN1 RAM */
-    (uint32_t) ( (uint32_t) 1U << 6U ) |                /* CAN2 RAM */
-    (uint32_t) ( (uint32_t) 1U << 10U ) |               /* CAN3 RAM */
-    (uint32_t) ( (uint32_t) 1U << 8U ) |                /* ADC1 RAM */
-    (uint32_t) ( (uint32_t) 1U << 14U ) |               /* ADC2 RAM */
-    (uint32_t) ( (uint32_t) 1U << 3U ) |                /* HET1 RAM */
-    (uint32_t) ( (uint32_t) 1U << 4U ) |                /* HTU1 RAM */
-    (uint32_t) ( (uint32_t) 1U << 15U ) |               /* HET2 RAM */
-    (uint32_t) ( (uint32_t) 1U << 16U )                 /* HTU2 RAM */
+  tms570_memory_init(
+    ( UINT32_C(1) << 1 ) |                /* DMA RAM */
+    ( UINT32_C(1) << 2 ) |                /* VIM RAM */
+    ( UINT32_C(1) << 5 ) |                /* CAN1 RAM */
+    ( UINT32_C(1) << 6 ) |                /* CAN2 RAM */
+    ( UINT32_C(1) << 10 ) |               /* CAN3 RAM */
+    ( UINT32_C(1) << 8 ) |                /* ADC1 RAM */
+    ( UINT32_C(1) << 14 ) |               /* ADC2 RAM */
+    ( UINT32_C(1) << 3 ) |                /* HET1 RAM */
+    ( UINT32_C(1) << 4 ) |                /* HTU1 RAM */
+    ( UINT32_C(1) << 15 ) |               /* HET2 RAM */
+    ( UINT32_C(1) << 16 )                 /* HTU2 RAM */
   );
 
   /* Disable parity */
@@ -364,6 +335,11 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
   /* Configure system response to error conditions signaled to the ESM group1 */
   tms570_esm_init();
 
+  tms570_emif_sdram_init();
+
+  /* Configures and enables the ARM-core Memory Protection Unit (MPU) */
+  _mpuInit_();
+
 #if 1
   /*
    * Do not depend on link register to be restored to
@@ -372,26 +348,6 @@ BSP_START_TEXT_SECTION void bsp_start_hook_0( void )
    */
   bsp_start_hook_0_done();
 #endif
-}
-
-BSP_START_TEXT_SECTION void bsp_start_hook_1( void )
-{
-  /* At this point we can use objects outside the .start section  */
-#if 0
-  /* Do not run attempt to initialize MPU when code is running from SDRAM */
-  if ( !tms570_running_from_sdram() ) {
-    /*
-     * MPU background areas setting has to be overlaid
-     * if execution of code is required from external memory/SDRAM.
-     * This region is non executable by default.
-     */
-    _mpuInit_();
-  }
-#endif
-  tms570_emif_sdram_init();
-
-  bsp_start_copy_sections();
-  bsp_start_clear_bss();
 }
 
 /*

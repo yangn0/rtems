@@ -179,7 +179,7 @@ msdos_file_ftruncate(rtems_libio_t *iop, off_t length)
                              length,
                              &new_length);
         if (rc == RC_OK && length != new_length) {
-            fat_file_truncate(&fs_info->fat, fat_fd, old_length);
+            (void) fat_file_truncate(&fs_info->fat, fat_fd, old_length);
             errno = ENOSPC;
             rc = -1;
         }
@@ -223,6 +223,11 @@ msdos_file_sync(rtems_libio_t *iop)
     }
 
     rc = fat_sync(&fs_info->fat);
+    if (rc != RC_OK)
+    {
+        msdos_fs_unlock(fs_info);
+        return rc;
+    }
 
     msdos_fs_unlock(fs_info);
 

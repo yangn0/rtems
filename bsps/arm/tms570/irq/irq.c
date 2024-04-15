@@ -1,13 +1,16 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 /**
  * @file
  *
  * @ingroup RTEMSBSPsARMTMS570
  *
- * @brief TMS570 interrupt support functions definitions.
+ * @brief This source file contains the interrupt controller support
+ *   implementation.
  */
 
 /*
- * Copyright (c) 2014 Premysl Houdek <kom541000@gmail.com>
+ * Copyright (C) 2014 Premysl Houdek <kom541000@gmail.com>
  *
  * Google Summer of Code 2014 at
  * Czech Technical University in Prague
@@ -15,61 +18,142 @@
  * 166 36 Praha 6
  * Czech Republic
  *
- * Based on LPC24xx and LPC1768 BSP
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * The license and distribution terms for this file may be
- * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <bsp.h>
 #include <bsp/irq-generic.h>
-#include <bsp/tms570-vim.h>
+#include <bsp/tms570.h>
 #include <bsp/irq.h>
 #include <rtems/score/armv4.h>
 
-unsigned int priorityTable[BSP_INTERRUPT_VECTOR_COUNT];
+#define VIM_CHANCTRL_COUNT 24
+#define VIM_CHANMAP_MASK UINT32_C(0x7f)
+#define VIM_CHANMAP_SHIFT(i) (24 - (8 * (i)))
+#define VIM_REQ_REG(vector) ((vector) >> 5)
+#define VIM_REQ_BIT(vector) (UINT32_C(1) << ((vector) & 0x1f))
 
-/**
- * @brief Set priority of the interrupt vector.
- *
- * This function is here because of compability. It should set
- * priority of the interrupt vector.
- * @warning It does not set any priority at HW layer. It is nearly imposible to
- * @warning set priority of the interrupt on TMS570 in a nice way.
- * @param[in] vector vector of isr
- * @param[in] priority new priority assigned to the vector
- * @return Void
- */
-void tms570_irq_set_priority(
-  rtems_vector_number vector,
-  unsigned priority
-)
+static void vim_set_channel_request(uint32_t channel, uint32_t request)
 {
-  if ( bsp_interrupt_is_valid_vector(vector) ) {
-    priorityTable[vector] = priority;
-  }
+  uint32_t chanctrl;
+  int shift;
+
+  chanctrl = TMS570_VIM.CHANCTRL[channel / 4];
+  shift = VIM_CHANMAP_SHIFT(channel % 4);
+  chanctrl &= ~(VIM_CHANMAP_MASK << shift);
+  chanctrl |= request << shift;
+  TMS570_VIM.CHANCTRL[channel / 4] = chanctrl;
 }
 
-/**
- * @brief Gets priority of the interrupt vector.
- *
- * This function is here because of compability. It returns priority
- * of the isr vector last set by tms570_irq_set_priority function.
- *
- * @warning It does not return any real priority of the HW layer.
- * @param[in] vector vector of isr
- * @retval 0 vector is invalid.
- * @retval priority priority of the interrupt
- */
-unsigned tms570_irq_get_priority(
-  rtems_vector_number vector
+rtems_status_code tms570_irq_set_priority(
+  rtems_vector_number vector,
+  uint32_t            priority
 )
 {
-  if ( bsp_interrupt_is_valid_vector(vector) ) {
-   return priorityTable[vector];
- }
- return 0;
+  rtems_interrupt_level level;
+  uint32_t current_channel;
+  uint32_t chanctrl;
+  size_t i;
+  size_t j;
+
+  if (!bsp_interrupt_is_valid_vector(vector)) {
+   return RTEMS_INVALID_ID;
+  }
+
+  if (priority < 2) {
+    return RTEMS_INVALID_PRIORITY;
+  }
+
+  if (priority >= BSP_INTERRUPT_VECTOR_COUNT) {
+    return RTEMS_INVALID_PRIORITY;
+  }
+
+  rtems_interrupt_disable(level);
+  current_channel = TMS570_VIM.CHANCTRL[priority / 4];
+  current_channel >>= VIM_CHANMAP_SHIFT(priority % 4);
+  current_channel &= VIM_CHANMAP_MASK;
+
+  for (i = 0; i < VIM_CHANCTRL_COUNT; ++i) {
+    chanctrl = TMS570_VIM.CHANCTRL[i];
+
+    for (j = 0; j < 4; ++j) {
+      uint32_t channel_vector;
+
+      channel_vector = (chanctrl >> VIM_CHANMAP_SHIFT(j)) & VIM_CHANMAP_MASK;
+
+      if (channel_vector == vector) {
+        vim_set_channel_request(i * 4 + j, current_channel);
+        goto set_my_request;
+      }
+    }
+  }
+
+set_my_request:
+
+  vim_set_channel_request(priority, vector);
+  rtems_interrupt_enable(level);
+  return RTEMS_SUCCESSFUL;
+}
+
+rtems_status_code tms570_irq_get_priority(
+  rtems_vector_number  vector,
+  unsigned            *priority
+)
+{
+  rtems_interrupt_level level;
+  size_t i;
+  size_t j;
+
+  if (priority == NULL) {
+    return RTEMS_INVALID_ADDRESS;
+  }
+
+  if (!bsp_interrupt_is_valid_vector(vector)) {
+   return RTEMS_INVALID_ID;
+  }
+
+  rtems_interrupt_disable(level);
+
+  for (i = 0; i < VIM_CHANCTRL_COUNT; ++i) {
+    uint32_t chanctrl;
+
+    chanctrl = TMS570_VIM.CHANCTRL[i];
+
+    for (j = 0; j < 4; ++j) {
+      uint32_t channel_vector;
+
+      channel_vector = (chanctrl >> VIM_CHANMAP_SHIFT(j)) & VIM_CHANMAP_MASK;
+
+      if (channel_vector == vector) {
+        rtems_interrupt_enable(level);
+        *priority = i * 4 + j;
+        return RTEMS_SUCCESSFUL;
+      }
+    }
+  }
+
+  rtems_interrupt_enable(level);
+  *priority = UINT32_MAX;
+  return RTEMS_NOT_DEFINED;
 }
 
 /**
@@ -82,9 +166,23 @@ unsigned tms570_irq_get_priority(
  */
 void bsp_interrupt_dispatch(void)
 {
-  rtems_vector_number vector = TMS570_VIM.IRQINDEX-1;
+  while (true) {
+    uint32_t irqindex;
 
-  bsp_interrupt_handler_dispatch(vector);
+    irqindex = TMS570_VIM.IRQINDEX;
+
+    if (irqindex == 0) {
+      return;
+    }
+
+    bsp_interrupt_handler_dispatch(irqindex - 1);
+  }
+}
+
+static bool can_disable(rtems_vector_number vector)
+{
+  /* INT_REQ0 and INT_REQ1 are always enabled as FIQ/NMI */
+  return vector >= 2;
 }
 
 /**
@@ -101,6 +199,20 @@ rtems_status_code bsp_interrupt_get_attributes(
   rtems_interrupt_attributes *attributes
 )
 {
+  bool can_disable_vector;
+
+  bsp_interrupt_assert(bsp_interrupt_is_valid_vector(vector));
+  bsp_interrupt_assert(attributes != NULL);
+
+  can_disable_vector = can_disable(vector);
+  attributes->is_maskable = can_disable_vector;
+  attributes->can_enable = true;
+  attributes->maybe_enable = true;
+  attributes->can_disable = can_disable_vector;
+  attributes->maybe_disable = can_disable_vector;
+  attributes->can_get_affinity = true;
+  attributes->can_set_affinity = true;
+
   return RTEMS_SUCCESSFUL;
 }
 
@@ -109,10 +221,14 @@ rtems_status_code bsp_interrupt_is_pending(
   bool               *pending
 )
 {
+  uint32_t intreq;
+
   bsp_interrupt_assert(bsp_interrupt_is_valid_vector(vector));
   bsp_interrupt_assert(pending != NULL);
-  *pending = false;
-  return RTEMS_UNSATISFIED;
+
+  intreq = TMS570_VIM.INTREQ[VIM_REQ_REG(vector)];
+  *pending = (intreq & VIM_REQ_BIT(vector)) != 0;
+  return RTEMS_SUCCESSFUL;
 }
 
 rtems_status_code bsp_interrupt_raise(rtems_vector_number vector)
@@ -132,10 +248,14 @@ rtems_status_code bsp_interrupt_vector_is_enabled(
   bool               *enabled
 )
 {
+  uint32_t reqen;
+
   bsp_interrupt_assert(bsp_interrupt_is_valid_vector(vector));
   bsp_interrupt_assert(enabled != NULL);
-  *enabled = false;
-  return RTEMS_UNSATISFIED;
+
+  reqen = TMS570_VIM.REQENASET[VIM_REQ_REG(vector)];
+  *enabled = (reqen & VIM_REQ_BIT(vector)) != 0;
+  return RTEMS_SUCCESSFUL;
 }
 
 rtems_status_code bsp_interrupt_vector_enable(
@@ -143,7 +263,7 @@ rtems_status_code bsp_interrupt_vector_enable(
 )
 {
   bsp_interrupt_assert(bsp_interrupt_is_valid_vector(vector));
-  TMS570_VIM.REQENASET[vector >> 5] = 1 << (vector & 0x1f);
+  TMS570_VIM.REQENASET[VIM_REQ_REG(vector)] = VIM_REQ_BIT(vector);
   return RTEMS_SUCCESSFUL;
 }
 
@@ -160,8 +280,12 @@ rtems_status_code bsp_interrupt_vector_disable(
   rtems_vector_number vector
 )
 {
+  if (!can_disable(vector)) {
+    return RTEMS_UNSATISFIED;
+  }
+
   bsp_interrupt_assert(bsp_interrupt_is_valid_vector(vector));
-  TMS570_VIM.REQENACLR[vector >> 5] = 1 << (vector & 0x1f);
+  TMS570_VIM.REQENACLR[VIM_REQ_REG(vector)] = VIM_REQ_BIT(vector);
   return RTEMS_SUCCESSFUL;
 }
 
@@ -186,7 +310,7 @@ void bsp_interrupt_facility_initialize(void)
     TMS570_VIM.REQENACLR[i] = 0xffffffff;
   }
   /* Map default events on interrupt vectors */
-  for ( i = 0; i < 24; i += 1, value += 0x04040404) {
+  for ( i = 0; i < VIM_CHANCTRL_COUNT; i += 1, value += 0x04040404) {
     TMS570_VIM.CHANCTRL[i] = value;
   }
   /* Set all vectors as IRQ (not FIR) */

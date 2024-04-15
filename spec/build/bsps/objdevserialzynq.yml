@@ -12,8 +12,13 @@ install:
   source:
   - bsps/include/dev/serial/zynq-uart-regs.h
   - bsps/include/dev/serial/zynq-uart.h
-links: []
+  - bsps/include/dev/serial/zynq-uart-zynq.h
+  - bsps/include/dev/serial/zynq-uart-zynqmp.h
+links:
+- role: build-dependency
+  uid: optzynquartkernbase
 source:
+- bsps/shared/dev/serial/zynq-uart-kernel-io.c
 - bsps/shared/dev/serial/zynq-uart-polled.c
 - bsps/shared/dev/serial/zynq-uart.c
 type: build

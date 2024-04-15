@@ -29,10 +29,6 @@
 #include <bsp/start.h>
 #include <bsp/arm-cp15-start.h>
 
-BSP_START_TEXT_SECTION void bsp_start_hook_0(void)
-{
-}
-
 BSP_START_TEXT_SECTION void bsp_start_hook_1(void)
 {
   bsp_start_copy_sections();

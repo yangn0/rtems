@@ -37,9 +37,6 @@
 #define LIBBSP_POWERPC_QORIQ_IRQ_H
 
 #include <bsp.h>
-#include <rtems/irq.h>
-#include <rtems/irq-extension.h>
-#include <rtems/score/processormask.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -279,6 +276,8 @@ extern "C" {
 #define QORIQ_IRQ_EXT_10 (QORIQ_IRQ_EXT_BASE + 10)
 #define QORIQ_IRQ_EXT_11 (QORIQ_IRQ_EXT_BASE + 11)
 
+#define QORIQ_IRQ_IS_EXT(vector) \
+  ((vector) >= QORIQ_IRQ_EXT_0 && (vector) <= QORIQ_IRQ_EXT_11)
 /** @} */
 
 /**
@@ -409,16 +408,6 @@ rtems_status_code qoriq_pic_set_priority(
   int *old_priority
 );
 
-rtems_status_code bsp_interrupt_set_affinity(
-  rtems_vector_number vector,
-  const Processor_mask *affinity
-);
-
-rtems_status_code bsp_interrupt_get_affinity(
-  rtems_vector_number vector,
-  Processor_mask *affinity
-);
-
 rtems_status_code qoriq_pic_msi_allocate(rtems_vector_number *vector);
 
 rtems_status_code qoriq_pic_msi_free(rtems_vector_number vector);
@@ -427,6 +416,31 @@ rtems_status_code qoriq_pic_msi_map(
   rtems_vector_number vector,
   uint64_t *addr,
   uint32_t *data
+);
+
+typedef enum {
+  QORIQ_EIRQ_TRIGGER_EDGE_FALLING,
+  QORIQ_EIRQ_TRIGGER_EDGE_RISING,
+  QORIQ_EIRQ_TRIGGER_LEVEL_LOW,
+  QORIQ_EIRQ_TRIGGER_LEVEL_HIGH,
+} qoriq_eirq_sense_and_polarity;
+
+/**
+ * @brief Change polarity and sense settings of external interrupts.
+ *
+ * NOTE: There are only very rare edge cases where you need this function.
+ *
+ * @a vector must be the vector number of an external interrupt.
+ *
+ * Use @a new_sense_and_polarity to select the new setting. If @a
+ * old_sense_and_polarity is not NULL, the old value is returned.
+ *
+ * @returns RTEMS_SUCCSSSFUL on sucess or other values for invalid settings.
+ */
+rtems_status_code qoriq_pic_set_sense_and_polarity(
+  rtems_vector_number vector,
+  qoriq_eirq_sense_and_polarity new_sense_and_polarity,
+  qoriq_eirq_sense_and_polarity *old_sense_and_polarity
 );
 
 /** @} */

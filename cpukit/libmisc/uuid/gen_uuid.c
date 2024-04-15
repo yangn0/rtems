@@ -171,7 +171,12 @@ static int get_random_fd(void)
 				fcntl(fd, F_SETFD, i | FD_CLOEXEC);
 		}
 #endif
+#ifdef __rtems__
+		srand((((time_t)getpid()) << ((sizeof(pid_t)*CHAR_BIT)>>1)) ^ getuid()
+		      ^ tv.tv_sec ^ tv.tv_usec);
+#else
 		srand((getpid() << ((sizeof(pid_t)*CHAR_BIT)>>1)) ^ getuid() ^ tv.tv_sec ^ tv.tv_usec);
+#endif
 #ifdef DO_JRAND_MIX
 		jrand_seed[0] = getpid() ^ (tv.tv_sec & 0xFFFF);
 		jrand_seed[1] = getppid() ^ (tv.tv_usec & 0xFFFF);
@@ -343,11 +348,17 @@ static int get_clock(uint32_t *clock_high, uint32_t *clock_low,
 		state_fd = open("/var/lib/libuuid/clock.txt",
 				O_RDWR|O_CREAT, 0660);
 		(void) umask(save_umask);
+#ifdef __rtems__
+		if (state_fd >= 0) {
+#endif
 		state_f = fdopen(state_fd, "r+");
 		if (!state_f) {
 			close(state_fd);
 			state_fd = -1;
 		}
+#ifdef __rtems__
+		}
+#endif
 	}
 	fl.l_type = F_WRLCK;
 	fl.l_whence = SEEK_SET;

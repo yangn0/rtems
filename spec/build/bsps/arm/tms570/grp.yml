@@ -27,23 +27,31 @@ links:
 - role: build-dependency
   uid: objnohwinit
 - role: build-dependency
-  uid: optcclk
-- role: build-dependency
   uid: optconirq
 - role: build-dependency
   uid: optmintskstksz
 - role: build-dependency
   uid: optoscmain
 - role: build-dependency
-  uid: optoscrtc
-- role: build-dependency
   uid: optreginit
 - role: build-dependency
   uid: optscibaud
 - role: build-dependency
-  uid: opttms570ls3137
-- role: build-dependency
   uid: optlinkflags
+- role: build-dependency
+  uid: optmemflashorigin
+- role: build-dependency
+  uid: optmemflashsize
+- role: build-dependency
+  uid: optmemsdramorigin
+- role: build-dependency
+  uid: optmemsdramsize
+- role: build-dependency
+  uid: optmemsramorigin
+- role: build-dependency
+  uid: optmemsramsize
+- role: build-dependency
+  uid: linkcmdsmemory
 - role: build-dependency
   uid: ../../linkcmds
 - role: build-dependency

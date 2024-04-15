@@ -42,9 +42,8 @@
 
 #include <bsp.h>
 #include <bsp/fatal.h>
-#include <bsp/irq.h>
+#include <bsp/irq-generic.h>
 #include <bsp/leon3.h>
-#include <rtems/rtems/intr.h>
 #include <grlib/irqamp.h>
 #include <rtems/score/profiling.h>
 #include <rtems/timecounter.h>
@@ -202,7 +201,7 @@ static void leon3_clock_initialize(void)
 #define Clock_driver_support_initialize_hardware() \
   leon3_clock_initialize()
 
-#define Clock_driver_timecounter_tick() leon3_tc_do_tick()
+#define Clock_driver_timecounter_tick(arg) leon3_tc_do_tick()
 
 #define BSP_FEATURE_IRQ_EXTENSION
 

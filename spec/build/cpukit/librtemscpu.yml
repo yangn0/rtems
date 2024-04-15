@@ -79,6 +79,7 @@ install:
 - destination: ${BSP_INCLUDEDIR}/rtems
   source:
   - cpukit/include/rtems/assoc.h
+  - cpukit/include/rtems/base64.h
   - cpukit/include/rtems/bdbuf.h
   - cpukit/include/rtems/bdpart.h
   - cpukit/include/rtems/blkdev.h
@@ -98,6 +99,7 @@ install:
   - cpukit/include/rtems/console.h
   - cpukit/include/rtems/counter.h
   - cpukit/include/rtems/cpuuse.h
+  - cpukit/include/rtems/crc.h
   - cpukit/include/rtems/deviceio.h
   - cpukit/include/rtems/devnull.h
   - cpukit/include/rtems/devzero.h
@@ -378,6 +380,7 @@ install:
   - cpukit/include/rtems/score/prioritybitmapimpl.h
   - cpukit/include/rtems/score/priorityimpl.h
   - cpukit/include/rtems/score/processormask.h
+  - cpukit/include/rtems/score/processormaskimpl.h
   - cpukit/include/rtems/score/profiling.h
   - cpukit/include/rtems/score/protectedheap.h
   - cpukit/include/rtems/score/rbtree.h
@@ -527,6 +530,9 @@ source:
 - cpukit/compression/xz/xz_crc32.c
 - cpukit/compression/xz/xz_dec_lzma2.c
 - cpukit/compression/xz/xz_dec_stream.c
+- cpukit/crc/crc24q.c
+- cpukit/base64/base64-encode.c
+- cpukit/base64/base64-decode.c
 - cpukit/dev/flash/flashdev.c
 - cpukit/dev/i2c/eeprom.c
 - cpukit/dev/i2c/fpga-i2c-slave.c
@@ -539,7 +545,6 @@ source:
 - cpukit/dev/i2c/ti-lm25066a.c
 - cpukit/dev/i2c/ti-tmp112.c
 - cpukit/dev/i2c/xilinx-axi-i2c.c
-- cpukit/dev/iobase64.c
 - cpukit/dev/ioprintf.c
 - cpukit/dev/iorelax.c
 - cpukit/dev/iovprintf.c

@@ -1,13 +1,15 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 /**
  * @file
  *
  * @ingroup RTEMSBSPsARMTMS570
  *
- * @brief clock functions definitions.
+ * @brief This source file contains the Clock Driver implementation.
  */
 
 /*
- * Copyright (c) 2014 Premysl Houdek <kom541000@gmail.com>
+ * Copyright (C) 2014 Premysl Houdek <kom541000@gmail.com>
  *
  * Google Summer of Code 2014 at
  * Czech Technical University in Prague
@@ -15,12 +17,26 @@
  * 166 36 Praha 6
  * Czech Republic
  *
- * Based on LPC24xx and LPC1768 BSP
- * by embedded brains GmbH & Co. KG and others
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * The license and distribution terms for this file may be
- * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <stdlib.h>
@@ -28,7 +44,7 @@
 #include <rtems.h>
 #include <bsp.h>
 #include <bsp/irq.h>
-#include <bsp/tms570-rti.h>
+#include <bsp/tms570.h>
 #include <rtems/timecounter.h>
 
 static struct timecounter tms570_rti_tc;
@@ -128,9 +144,9 @@ static void tms570_clock_driver_support_initialize_hardware( void )
  *
  * @retval Void
  */
-static void tms570_clock_driver_support_at_tick( void )
+static void tms570_clock_driver_support_at_tick(volatile tms570_rti_t *rti)
 {
-  TMS570_RTI.INTFLAG = TMS570_RTI_INTFLAG_INT0;
+  rti->INTFLAG = TMS570_RTI_INTFLAG_INT0;
 }
 
 /**
@@ -142,7 +158,7 @@ static void tms570_clock_driver_support_at_tick( void )
  * @retval Void
  */
 static void tms570_clock_driver_support_install_isr(
-  rtems_isr_entry Clock_isr
+  rtems_interrupt_handler handler
 )
 {
   rtems_status_code sc = RTEMS_SUCCESSFUL;
@@ -151,8 +167,8 @@ static void tms570_clock_driver_support_install_isr(
     TMS570_IRQ_TIMER_0,
     "Clock",
     RTEMS_INTERRUPT_UNIQUE,
-    (rtems_interrupt_handler) Clock_isr,
-    NULL
+    handler,
+    RTEMS_DEVOLATILE(tms570_rti_t *, &TMS570_RTI)
   );
   if ( sc != RTEMS_SUCCESSFUL ) {
     rtems_fatal_error_occurred(0xdeadbeef);
@@ -161,14 +177,12 @@ static void tms570_clock_driver_support_install_isr(
 
 #define Clock_driver_support_initialize_hardware \
                         tms570_clock_driver_support_initialize_hardware
-#define Clock_driver_support_at_tick \
-                        tms570_clock_driver_support_at_tick
+#define Clock_driver_support_at_tick(arg) \
+                        tms570_clock_driver_support_at_tick(arg)
 #define Clock_driver_support_initialize_hardware \
                         tms570_clock_driver_support_initialize_hardware
 
-#define Clock_driver_support_install_isr(Clock_isr) \
-              tms570_clock_driver_support_install_isr( Clock_isr )
-
-void Clock_isr(void *arg); /* to supress warning */
+#define Clock_driver_support_install_isr(handler) \
+              tms570_clock_driver_support_install_isr(handler)
 
 #include "../../../shared/dev/clock/clockimpl.h"

@@ -1,13 +1,16 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+
 /**
  * @file
  *
  * @ingroup RTEMSBSPsARMTMS570
  *
- * @brief Serial communication interface (SCI) functions definitions.
+ * @brief This source file contains the Console Driver implementation using the
+ *   Serial Communication Interface (SCI).
  */
 
 /*
- * Copyright (c) 2014 Premysl Houdek <kom541000@gmail.com>
+ * Copyright (C) 2014 Premysl Houdek <kom541000@gmail.com>
  *
  * Google Summer of Code 2014 at
  * Czech Technical University in Prague
@@ -15,25 +18,36 @@
  * 166 36 Praha 6
  * Czech Republic
  *
- * Based on LPC24xx and LPC1768 BSP
- * by embedded brains GmbH & Co. KG and others
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * The license and distribution terms for this file may be
- * found in the file LICENSE in this distribution or at
- * http://www.rtems.org/license/LICENSE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <bspopts.h>
 #include <termios.h>
 #include <rtems/termiostypes.h>
-#include <bsp/tms570-sci.h>
 #include <bsp/tms570-sci-driver.h>
 #include <rtems/console.h>
 #include <bsp.h>
 #include <bsp/fatal.h>
 #include <bsp/irq.h>
-
-#define TMS570_SCI_BUFFER_SIZE 1
 
 /**
  * @brief Table including all serial drivers
@@ -153,33 +167,6 @@ rtems_device_driver console_initialize(
     }
   }
   return RTEMS_SUCCESSFUL;
-}
-
-/**
- * @brief Reads chars from HW
- *
- * Reads chars from HW peripheral specified in driver context.
- * TMS570 does not have HW buffer for serial line so this function can
- * return only 0 or 1 char
- *
- * @param[in] ctx context of the driver
- * @param[out] buf read data buffer
- * @param[in] N size of buffer
- * @retval x Number of read chars from peripherals
- */
-static int tms570_sci_read_received_chars(
-  tms570_sci_context * ctx,
-  char * buf,
-  int N)
-{
-  if ( N < 1 ) {
-    return 0;
-  }
-  if ( ctx->regs->RD != 0 ) {
-     buf[0] = ctx->regs->RD;
-    return 1;
-  }
-  return 0;
 }
 
 /**
@@ -335,23 +322,25 @@ static void tms570_sci_interrupt_handler(void * arg)
 {
   rtems_termios_tty *tty = arg;
   tms570_sci_context *ctx = rtems_termios_get_device_context(tty);
-  char buf[TMS570_SCI_BUFFER_SIZE];
-  size_t n;
 
   /*
    * Check if we have received something.
    */
    if ( (ctx->regs->FLR & TMS570_SCI_FLR_RXRDY ) == TMS570_SCI_FLR_RXRDY ) {
-      n = tms570_sci_read_received_chars(ctx, buf, TMS570_SCI_BUFFER_SIZE);
-      if ( n > 0 ) {
-        /* Hand the data over to the Termios infrastructure */
-        rtems_termios_enqueue_raw_characters(tty, buf, n);
-      }
+      char buf[1];
+
+      /* Read the received byte */
+      buf[0] = ctx->regs->RD & 0x000000FF;
+
+      /* Hand the data over to the Termios infrastructure */
+      rtems_termios_enqueue_raw_characters(tty, buf, 1);
     }
   /*
    * Check if we have something transmitted.
    */
   if ( (ctx->regs->FLR & TMS570_SCI_FLR_TXRDY ) == TMS570_SCI_FLR_TXRDY ) {
+    size_t n;
+
     n = tms570_sci_transmitted_chars(ctx);
     if ( n > 0 ) {
       /*

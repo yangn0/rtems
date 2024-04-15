@@ -32,22 +32,22 @@
 
 #include <rtems/console.h>
 #include <rtems/bspIo.h>
-#include <rtems/sysinit.h>
 #include <rtems/termiostypes.h>
 
 #include <bsp/irq.h>
 #include <dev/serial/zynq-uart.h>
+#include <dev/serial/zynq-uart-regs.h>
 
 #include <bspopts.h>
 
 static zynq_uart_context zynqmp_uart_instances[2] = {
   {
     .base = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER( "Zynq UART 0" ),
-    .regs = (volatile struct zynq_uart *) 0xff000000,
+    .regs = (volatile zynq_uart *) ZYNQ_UART_0_BASE_ADDR,
     .irq = ZYNQMP_IRQ_UART_0
   }, {
     .base = RTEMS_TERMIOS_DEVICE_CONTEXT_INITIALIZER( "Zynq UART 1" ),
-    .regs = (volatile struct zynq_uart *) 0xff010000,
+    .regs = (volatile zynq_uart *) ZYNQ_UART_1_BASE_ADDR,
     .irq = ZYNQMP_IRQ_UART_1
   }
 };
@@ -61,6 +61,7 @@ rtems_status_code console_initialize(
   size_t i;
 
   for (i = 0; i < RTEMS_ARRAY_SIZE(zynqmp_uart_instances); ++i) {
+    zynq_uart_context *ctx = &zynqmp_uart_instances[i];
     char uart[] = "/dev/ttySX";
 
     uart[sizeof(uart) - 2] = (char) ('0' + i);
@@ -68,10 +69,10 @@ rtems_status_code console_initialize(
       &uart[0],
       &zynq_uart_handler,
       NULL,
-      &zynqmp_uart_instances[i].base
+      &ctx->base
     );
 
-    if (i == BSP_CONSOLE_MINOR) {
+    if (ctx->regs == (zynq_uart *) ZYNQ_UART_KERNEL_IO_BASE_ADDR) {
       link(&uart[0], CONSOLE_DEVICE_NAME);
     }
   }
@@ -81,49 +82,5 @@ rtems_status_code console_initialize(
 
 void zynqmp_debug_console_flush(void)
 {
-  zynq_uart_reset_tx_flush(&zynqmp_uart_instances[BSP_CONSOLE_MINOR]);
+  zynq_uart_reset_tx_flush((zynq_uart *) ZYNQ_UART_KERNEL_IO_BASE_ADDR);
 }
-
-static void zynqmp_debug_console_out(char c)
-{
-  rtems_termios_device_context *base =
-    &zynqmp_uart_instances[BSP_CONSOLE_MINOR].base;
-
-  zynq_uart_write_polled(base, c);
-}
-
-static void zynqmp_debug_console_init(void)
-{
-  rtems_termios_device_context *base =
-    &zynqmp_uart_instances[BSP_CONSOLE_MINOR].base;
-
-  zynq_uart_initialize(base);
-  BSP_output_char = zynqmp_debug_console_out;
-}
-
-static void zynqmp_debug_console_early_init(char c)
-{
-  rtems_termios_device_context *base =
-    &zynqmp_uart_instances[BSP_CONSOLE_MINOR].base;
-
-  zynq_uart_initialize(base);
-  zynqmp_debug_console_out(c);
-}
-
-static int zynqmp_debug_console_in(void)
-{
-  rtems_termios_device_context *base =
-    &zynqmp_uart_instances[BSP_CONSOLE_MINOR].base;
-
-  return zynq_uart_read_polled(base);
-}
-
-BSP_output_char_function_type BSP_output_char = zynqmp_debug_console_early_init;
-
-BSP_polling_getchar_function_type BSP_poll_char = zynqmp_debug_console_in;
-
-RTEMS_SYSINIT_ITEM(
-  zynqmp_debug_console_init,
-  RTEMS_SYSINIT_BSP_START,
-  RTEMS_SYSINIT_ORDER_LAST_BUT_5
-);

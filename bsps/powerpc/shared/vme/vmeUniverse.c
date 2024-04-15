@@ -1708,6 +1708,7 @@ LERegister1            dcpp = ld_le32(&d->dcpp);
 /* RTEMS interrupt subsystem */
 
 #include <bsp/irq.h>
+#include <rtems/irq.h>
 
 typedef struct
 UniverseIRQEntryRec_ {
