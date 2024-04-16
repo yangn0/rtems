@@ -157,8 +157,8 @@ static void flush_fifos(const pl011_context *context) {
     const uintptr_t regs_base = context->regs_base;
 
     /* Wait for pending transactions */
-    while ((FR(regs_base) & FR_BUSY) != 0)
-        ;
+    // while ((FR(regs_base) & FR_BUSY) != 0)
+    //     ;
 
     LCRH(regs_base) &= ~LCRH_FEN;
     LCRH(regs_base) |= LCRH_FEN;
