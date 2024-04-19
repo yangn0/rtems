@@ -204,19 +204,26 @@ static void irq_handler(void *arg) {
      * Some characters got queued in the TXFIFO, so dequeue them from Termios'
      * structures.
      */
-    if (context->tx_queued_chars != -1) {
+    if ((irqs & IRQ_TX_BIT)!=0) {
         /*
          * First interrupt was raised, so no need to trigger the handler
          * through software anymore.
          */
-        if (context->needs_sw_triggered_tx_irq && (irqs & IRQ_TX_BIT) != 0)
+        if (context->needs_sw_triggered_tx_irq == true)
             context->needs_sw_triggered_tx_irq = false;
 
         (void)rtems_termios_dequeue_characters(context->tty,
                                                context->tx_queued_chars);
-
-        /* No need to clear the interrupt. It will automatically get cleared
-         * when TXFIFO is filled above the trigger level. */
+        
+        /* 
+        * Explicitly clear the transmit interrupt.  This is necessary
+        * because there may not be enough bytes in the output buffer to
+        * fill the FIFO greater than the transmit interrupt trigger level.
+        * If FIFOs are disabled, this applies if there are 0 bytes to
+        * transmit and therefore nothing to fill the Tx holding register
+        * with.  
+        */
+        clear_irq(regs_base, IRQ_TX_BIT);
     }
 }
 #endif
@@ -284,28 +291,28 @@ static void write_buffer(rtems_termios_device_context *base,
     pl011_context *context    = (void *)base;
     const uintptr_t regs_base = context->regs_base;
 
+    enable_irq(regs_base, IRQ_TX_BIT);
+
     if (n > 0) {
         size_t i = 0;
+        while(is_txfifo_full(regs_base)) ;
         while (!is_txfifo_full(regs_base) && i < n) {
             write_char(regs_base, buffer[i]);
             i++;
         }
-
         context->tx_queued_chars = i;
-        enable_irq(regs_base, IRQ_TX_BIT);
-
+        
         if (context->needs_sw_triggered_tx_irq)
-            irq_handler(context);
-
-        return;
+            (void)rtems_termios_dequeue_characters(context->tty,
+                                               context->tx_queued_chars);
+    }else {
+        /*
+        * Termios will set n to zero to indicate that the transmitter is now
+        * inactive. The output buffer is empty in this case. The driver may
+        * disable the transmit interrupts now.
+        */
+        disable_irq(regs_base, IRQ_TX_BIT);
     }
-
-    /*
-     * Termios will set n to zero to indicate that the transmitter is now
-     * inactive. The output buffer is empty in this case. The driver may
-     * disable the transmit interrupts now.
-     */
-    disable_irq(regs_base, IRQ_TX_BIT);
 #else
     for (size_t i = 0; i < n; i++)
         pl011_write_char_polled(base, buffer[i]);
