@@ -363,7 +363,7 @@ static bool set_attributes(rtems_termios_device_context *base,
         return false;
 
     /* Start mode configuration from a clean slate */
-    uint32_t lcrh = LCRH(regs_base) & LCRH_FEN;
+    uint32_t lcrh = 0;
 
     /* Mode: parity */
     if ((term->c_cflag & PARENB) != 0) {
@@ -423,6 +423,9 @@ static bool set_attributes(rtems_termios_device_context *base,
     /* Set the baudrate */
     IBRD(regs_base) = ibrd;
     FBRD(regs_base) = fbrd;
+
+    /* enable FIFO */
+    lcrh = lcrh | LCRH_FEN;
 
     /*
      * Commit mode configurations
