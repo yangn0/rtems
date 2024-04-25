@@ -3,9 +3,10 @@
 /**
  * @file
  *
- * @ingroup RTEMSBSPsARMShared
+ * @ingroup DevIRQGIC
  *
- * @brief This source file contains the implementation of ARM GICv2 support.
+ * @brief This source file contains the implementation of the generic GICv2
+ *   support.
  */
 
 /*
@@ -41,6 +42,14 @@
 #include <bsp/start.h>
 #include <rtems/score/processormaskimpl.h>
 
+/*
+ * The GIC architecture reserves interrupt ID numbers 1020 to 1023 for special
+ * purposes.
+ */
+#if BSP_INTERRUPT_VECTOR_COUNT >= 1020
+#error "BSP_INTERRUPT_VECTOR_COUNT is too large"
+#endif
+
 #define GIC_CPUIF ((volatile gic_cpuif *) BSP_ARM_GIC_CPUIF_BASE)
 
 #define PRIORITY_DEFAULT 127
@@ -75,12 +84,19 @@
 void bsp_interrupt_dispatch(void)
 {
   volatile gic_cpuif *cpuif = GIC_CPUIF;
-  uint32_t icciar = cpuif->icciar;
-  rtems_vector_number vector = GIC_CPUIF_ICCIAR_ACKINTID_GET(icciar);
-  rtems_vector_number spurious = 1023;
 
-  if (vector != spurious) {
-    arm_interrupt_handler_dispatch(vector);
+  while (true) {
+    uint32_t icciar = cpuif->icciar;
+    rtems_vector_number vector = GIC_CPUIF_ICCIAR_ACKINTID_GET(icciar);
+    uint32_t status;
+
+    if (!bsp_interrupt_is_valid_vector(vector)) {
+      break;
+    }
+
+    status = arm_interrupt_enable_interrupts();
+    bsp_interrupt_handler_dispatch_unchecked(vector);
+    arm_interrupt_restore_interrupts(status);
 
     cpuif->icceoir = icciar;
   }
